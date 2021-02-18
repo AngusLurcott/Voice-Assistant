@@ -455,6 +455,20 @@ class ReminderSkill(MycroftSkill):
             else:
                 raise
 
+    @intent_file_handler('GetRemindersForThisWeek.intent')
+    def get_reminders_for_this_week(self, msg=None):
+        """ List all reminders for the specified date. """
+        nextWeek = datetime.now() + timedelta(7)
+        if 'reminders' in self.settings:
+            reminders = [r for r in self.settings['reminders']
+                         if deserialize(r[1]).date() <= nextWeek.date()]
+            if len(reminders) > 0:
+                for r in reminders:
+                    reminder, dt = (r[0], deserialize(r[1]))
+                    self.speak(reminder + ' at ' + nice_time(dt))
+                return
+        self.speak_dialog('NoUpcoming')
+
     @intent_file_handler('ClearReminders.intent')
     def clear_all(self, message):
         """ Clear all reminders. """
