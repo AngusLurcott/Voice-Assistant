@@ -469,6 +469,42 @@ class ReminderSkill(MycroftSkill):
                 return
         self.speak_dialog('NoUpcoming')
 
+    @intent_file_handler('GetRemindersForDayInThisWeek.intent')
+    def get_reminders_for_day_in_this_week(self, msg=None):
+        DAY_OF_WEEK = {
+            "MONDAY": 0,
+            "TUESDAY": 1,
+            "WEDNESDAY": 2,
+            "THURSDAY": 3,
+            "FRIDAY": 4,
+            "SATURDAY": 5,
+            "SUNDAY": 6
+        }
+        """ List all reminders for a day in the week. """
+        today = datetime.now().weekday()
+        # print("This is the day today,", today);
+        captured_day = msg.data['utterance'].split(' ')[-1].upper()
+        desired_day = DAY_OF_WEEK[captured_day]
+        # print("This is the captured date,", captured_day);
+        if(desired_day == today):
+            maxDate = datetime.now()
+        elif(captured_day in DAY_OF_WEEK):
+            if (today > desired_day):
+                dayDelta = (6 - today) + (desired_day + 1)
+            else:
+                dayDelta = abs(DAY_OF_WEEK[captured_day] - today)
+            maxDate = datetime.now() + timedelta(dayDelta)
+        # print("Looking for this date: ", maxDate.date())
+        if 'reminders' in self.settings:
+            reminders = [r for r in self.settings['reminders']
+                         if deserialize(r[1]).date() == maxDate.date()]
+            if len(reminders) > 0:
+                for r in reminders:
+                    reminder, dt = (r[0], deserialize(r[1]))
+                    self.speak(reminder + ' at ' + nice_time(dt))
+                return
+        self.speak_dialog('NoUpcoming')
+
     @intent_file_handler('ClearReminders.intent')
     def clear_all(self, message):
         """ Clear all reminders. """
