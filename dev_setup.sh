@@ -581,6 +581,8 @@ chmod +x bin/mycroft-say-to
 chmod +x bin/mycroft-skill-testrunner
 chmod +x bin/mycroft-speak
 
+chmod +x linking-custom-skills.sh
+
 # create and set permissions for logging
 if [[ ! -w /var/log/mycroft/ ]] ; then
     # Creating and setting permissions
