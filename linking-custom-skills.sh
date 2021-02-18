@@ -8,6 +8,19 @@ CUSTOM_SKILL_DIR="custom_skills"
 
 TOP=$(pwd -L)
 
+
+function show_help() {
+    echo '
+Usage: linking-custom-skills.sh [options]
+Updating the skills directory with skills in the custom skills directory.
+
+Options:
+    -ir, --install-requirements   Installs the requirements of each skill in the custom directory
+    -h, --help                    Show this message
+
+'
+}
+
 function install_requirements_from_subdirs() {
     echo "Installing Requirements for Custom Skills"
     for skill_dir in "$TOP/$CUSTOM_SKILL_DIR"/*/; 
@@ -21,6 +34,11 @@ function install_requirements_from_subdirs() {
 
 for var in "$@" ; do
     # Check for options
+    if [[ $var == '-h' || $var == '--help' ]] ; then
+        show_help
+        exit 0
+    fi
+
     if [[ $var == '-ir' || $var == '--install-requirements' ]] ; then
         if install_requirements_from_subdirs; then
             exit 0
