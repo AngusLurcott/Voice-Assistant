@@ -82,25 +82,3 @@ setup(
         ]
     }
 )
-
-#config settings for firebase
-config = {
-  "apiKey": base64.b64decode("QUl6YVN5QnljNDhrT1ByVGdNT0g3eTVUTHpYYlEzdmVaLW1sYXF3"),
-  "authDomain": "cardiff-smart-speaker-project.firebaseapp.com",
-  "projectId": "cardiff-smart-speaker-project",
-  "storageBucket": "cardiff-smart-speaker-project.appspot.com",
-  "messagingSenderId": "879632798817",
-  "appId": "1:879632798817:web:a3f5d1f91b739edcf48620",
-  "measurementId": "G-QGKY6EG3S3"
-}
-
-#'firebase' variable with many built in firebase features
-firebase = pyrebase.initialize_app(config)
-
-auth = firebase.auth()
-db = firebase.database()
-
-#EXAMPLE USAGE SEE FIREBASE DOCS TO LEARN MORE OR REACH OUT TO TEAM FOR HELP IF NEEDED
-users = db.child("users").get()
-
-print(users.val() + "YES")
