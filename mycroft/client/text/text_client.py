@@ -872,7 +872,7 @@ help_struct = [
      "Skill Debugging Commands",
      [
       (":skills",               "list installed skills"),
-      (":api SKILL",            "show skill's public API")
+      (":api SKILL",            "show skill's public API"),
       (":activate SKILL",       "activate skill, e.g. 'activate skill-wiki'"),
       (":deactivate SKILL",     "deactivate skill"),
       (":keep SKILL",           "deactivate all skills except " +
