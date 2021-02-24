@@ -32,6 +32,16 @@ MINUTES = 60  # seconds
 
 DEFAULT_TIME = now_local().replace(hour=8, minute=0, second=0)
 
+DAY_OF_WEEK = {
+    "MONDAY": 0,
+    "TUESDAY": 1,
+    "WEDNESDAY": 2,
+    "THURSDAY": 3,
+    "FRIDAY": 4,
+    "SATURDAY": 5,
+    "SUNDAY": 6
+}
+
 
 def deserialize(dt):
     return datetime.strptime(dt, '%Y%d%m-%H%M%S-%z')
@@ -47,6 +57,14 @@ def is_today(d):
 
 def is_tomorrow(d):
     return d.date() == now_local().date() + timedelta(days=1)
+
+
+def is_within_week(d):
+    return d.date() == (datetime.now() + timedelta(7)).date()
+
+
+def get_day_of_date(d):
+    return DAY_OF_WEEK[d.weekday()]
 
 
 def contains_datetime(utterance, lang='en-us'):
@@ -383,6 +401,14 @@ class ReminderSkill(MycroftSkill):
                 self.speak_dialog('NextTomorrow',
                                   data={'time': nice_time(next_reminder[1]),
                                         'reminder': next_reminder[0]})
+            elif is_within_week(next_reminder[1]):
+                """ List all reminders for a day in the week. """
+                reminderDay = get_day_of_date(deserialize(r['date']))
+                # DAY_OF_WEEK[deserialize(r['date']).weekday()]
+                self.speak_dialog('NextReminderWithinWeek',
+                                  data={'time': nice_time(next_reminder[1]),
+                                        'date': reminderDay,
+                                        'reminder': next_reminder[0]})
             else:
                 self.speak_dialog('NextOtherDate',
                                   data={'time': nice_time(next_reminder[1]),
@@ -435,25 +461,41 @@ class ReminderSkill(MycroftSkill):
             else:
                 reminders = [r for r in self.settings['reminders']
                             if deserialize(r['date']).date() <= nextWeek.date()]
+            tempDay = None
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminderType = (r['name'], deserialize(r['date']), r['type'])
                     self.speak(reminder + ' at ' + nice_time(dt))
+                    if is_today(r['date']):
+                        self.speak_dialog('NextToday',
+                                        data={'time': nice_time(r['date']),
+                                                'reminder': r['name']})
+                    elif is_tomorrow(r['date']):
+                        self.speak_dialog('NextTomorrow',
+                                        data={'time': nice_time(r['date']),
+                                                'reminder': r['name']})
+                    elif is_within_week(r['name']):
+                        """ List all reminders for a day in the week. """
+                        # reminderDay = DAY_OF_WEEK[deserialize(r['date']).weekday()]
+                        reminderDay = get_day_of_date(deserialize(r['date']))
+                        if (tempDay is None):
+                            tempDay = reminderDay
+                        elif tempDay != reminderDay:
+                            tempDay = reminderDay
+                            self.speak('On ' + tempDay)
+                        else:
+                            self.speak('And')
+
+                        # reminderDay = get_day_of_date(deserialize(r['date']))
+                        self.speak_dialog('NextReminderWithinWeek_Alternate', data={'time': nice_time(r['date']), 'reminder': r['name']})
+                    else:
+                        pass
                 return
         self.speak_dialog('NoUpcoming')
 
     @intent_file_handler('GetRemindersForDayInThisWeek.intent')
     @skill_api_method
     def get_reminders_for_day_in_this_week(self, msg=None, day=None, reminderType=None):
-        DAY_OF_WEEK = {
-            "MONDAY": 0,
-            "TUESDAY": 1,
-            "WEDNESDAY": 2,
-            "THURSDAY": 3,
-            "FRIDAY": 4,
-            "SATURDAY": 5,
-            "SUNDAY": 6
-        }
         """ List all reminders for a day in the week. """
         today = datetime.now().weekday()
         # print("This is the day today,", today);
@@ -482,7 +524,7 @@ class ReminderSkill(MycroftSkill):
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminderType = (r['name'], deserialize(r['date']), r['type'])
-                    self.speak(reminder + ' at ' + nice_time(dt))
+                    self.speak(reminder + ' at ' + nice_time(dt) + ' this ' + get_day_of_date(maxDate))
                 return
         self.speak_dialog('NoUpcoming')
 
