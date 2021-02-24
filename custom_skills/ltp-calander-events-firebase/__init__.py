@@ -121,11 +121,12 @@ class CalanderEventFirebaseSkill(MycroftSkill):
             # Get reminder name and date from json
             reminder = event.get('event_name')
             dt = parse(event.get('event_date'))
-            serialized = serialize(dt)
-            print("Adding Reminders", reminder)
+            if(dt > now_local()):
+                serialized = serialize(dt)
+                print("Adding Reminders", reminder)
 
-            reminderSkill = SkillApi.get('ltp-reminder-firebase.mycroftai')
-            reminderSkill.append_new_reminder(reminder, serialized, 'calender-event')
+                reminderSkill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+                reminderSkill.append_new_reminder(reminder, serialized, 'goals')
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')
