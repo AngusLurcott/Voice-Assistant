@@ -24,37 +24,7 @@ from mycroft.util.log import LOG
 from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
 
-# imports for pyrebase and parsing JSON Date
-from dateutil.parser import parse
-import pyrebase
-from requests import HTTPError
-import base64
-
-
-# Firebase Config, API key needs to be changed in production
-FIREBASE_CONFIG = {
-"apiKey": base64.b64decode("QUl6YVN5QnljNDhrT1ByVGdNT0g3eTVUTHpYYlEzdmVaLW1sYXF3"),
-"authDomain": "cardiff-smart-speaker-project.firebaseapp.com",
-"storageBucket": "cardiff-smart-speaker-project.appspot.com",
-"databaseURL": "https://cardiff-smart-speaker-project-default-rtdb.firebaseio.com"
-}
-
-# Dummy JSON list of Events that would be fetched from the DB
-FETCHED_EVENTS = [
-    {
-        "event_name": "Event 1",
-        "event_date": "2021-02-18 18:00:15+00:00"
-    },
-    {
-        "event_name": "Doctor's Appointment",
-        "event_date": "2021-02-19 14:02:00+00:00"
-    },
-    {
-        "event_name": "Something Else on Calander",
-        "event_date": "2021-02-19 17:00:15+00:00"
-    }
-]
-
+from mycroft.skills import skill_api_method
 
 REMINDER_PING = join(dirname(__file__), 'twoBeep.wav')
 
@@ -101,9 +71,6 @@ class ReminderSkill(MycroftSkill):
         self.NIGHT_HOURS = [23, 0, 1, 2, 3, 4, 5, 6]
 
     def initialize(self):
-        # Initialising the Database Connection to Firebase
-        self.initialize_firebase_connection()
-
         # Handlers for notifications after speak
         # TODO Make this work better in test
         if isinstance(self.bus, MessageBusClient):
@@ -114,11 +81,6 @@ class ReminderSkill(MycroftSkill):
         # Reminder checker event
         self.schedule_repeating_event(self.__check_reminder, datetime.now(),
                                       0.5 * MINUTES, name='reminder')
-
-    def initialize_firebase_connection(self):
-        firebase = pyrebase.initialize_app(FIREBASE_CONFIG)
-        auth = firebase.auth()
-        self.db = firebase.database()
 
     def add_notification(self, identifier, note, expiry):
         self.notes[identifier] = (note, expiry)
@@ -231,6 +193,7 @@ class ReminderSkill(MycroftSkill):
             return nice_date(d.date())
 
     @intent_file_handler('ReminderAt.intent')
+    @skill_api_method
     def add_new_reminder(self, msg=None):
         """ Handler for adding  a reminder with a name at a specific time. """
         reminder = msg.data.get('reminder', None)
@@ -255,6 +218,16 @@ class ReminderSkill(MycroftSkill):
             self.__save_reminder_local(reminder, reminder_time)
         else:
             self.speak_dialog('NoDateTime')
+
+    @skill_api_method
+    def append_new_reminder(self, reminder, serialized):
+        if 'reminders' in self.settings:
+            print("Adding New Reminder to Existing Reminders List")
+            self.settings['reminders'].append((reminder, serialized))
+        else:
+            print("Adding New Reminder List")
+            self.settings['reminders'] = [(reminder, serialized)]
+        return True
 
     def __save_reminder_local(self, reminder, reminder_time):
         """ Speak verification and store the reminder. """
@@ -348,25 +321,33 @@ class ReminderSkill(MycroftSkill):
                         r for r in self.settings['reminders']
                         if deserialize(r[1]).date() != date.date()]
 
-    @intent_file_handler('GetRemindersForDay.intent')
-    def get_reminders_for_day(self, msg=None):
-        """ List all reminders for the specified date. """
-        if 'date' in msg.data:
-            date, _ = extract_datetime(msg.data['date'], lang=self.lang)
-        else:
-            date, _ = extract_datetime(msg.data['utterance'], lang=self.lang)
+    # @intent_file_handler('GetRemindersForDay.intent')
+    # @skill_api_method
+    # def get_reminders_for_day(self, msg=None):
+    #     """ List all reminders for the specified date. """
+    #     if 'date' in msg.data:
+    #         date, _ = extract_datetime(msg.data['date'], lang=self.lang)
+    #     else:
+    #         date, _ = extract_datetime(msg.data['utterance'], lang=self.lang)
 
-        if 'reminders' in self.settings:
-            reminders = [r for r in self.settings['reminders']
-                         if deserialize(r[1]).date() == date.date()]
-            if len(reminders) > 0:
-                for r in reminders:
-                    reminder, dt = (r[0], deserialize(r[1]))
-                    self.speak(reminder + ' at ' + nice_time(dt))
-                return
-        self.speak_dialog('NoUpcoming')
+    #     if 'reminders' in self.settings:
+    #         reminders = [r for r in self.settings['reminders']
+    #                      if deserialize(r[1]).date() == date.date()]
+    #         if len(reminders) > 0:
+    #             for r in reminders:
+    #                 reminder, dt = (r[0], deserialize(r[1]))
+    #                 self.speak(reminder + ' at ' + nice_time(dt))
+    #             return
+    #     self.speak_dialog('NoUpcoming')
+    @skill_api_method
+    def get_all_reminders(self):
+        if len(self.settings.get('reminders', [])) > 0:
+            return self.settings['reminders']
+        else:
+            return []
 
     @intent_file_handler('GetNextReminders.intent')
+    @skill_api_method
     def get_next_reminder(self, msg=None):
         """ Get the first upcoming reminder. """
         if len(self.settings.get('reminders', [])) > 0:
@@ -421,39 +402,6 @@ class ReminderSkill(MycroftSkill):
                 remove_list.append(c)
         for c in remove_list:
             self.cancellable.remove(c)
-
-    # Adds the fetched JSON List into the reminders list
-    def sync_remote_events_to_device(self):
-        for event in FETCHED_EVENTS:
-            # Get reminder name and date from json
-            reminder = event.get('event_name')
-            dt = parse(event.get('event_date'))
-            serialized = serialize(dt)
-            print("Adding Reminders", reminder)
-            # Appends a new reminder to the existing list
-            # if the remiders list already exists
-            # or creates the list if it is empty
-            if 'reminders' in self.settings:
-                print("Adding New Reminder to Existing Reminders List")
-                self.settings['reminders'].append((reminder, serialized))
-            else:
-                print("Adding New Reminder List")
-                self.settings['reminders'] = [(reminder, serialized)]
-
-    # Intent to connect to firebase and update the system reminder list
-    @intent_file_handler('ConnectToFirebase.intent')
-    def handle_connection_firebase(self, message):
-        try:
-            # Currently checks values inside the users table
-            # TODO: Use the Events/Reminders table
-            users = self.db.child("users").get()
-            self.speak_dialog('FirebaseFetchResult', {'data': f"for the users table, {len(users.val())} records found"})
-            self.sync_remote_events_to_device()
-        except HTTPError as e:
-            if e.response.status_code == 401:
-                LOG.error('Could not refresh token, invalid refresh code.')
-            else:
-                raise
 
     @intent_file_handler('GetRemindersForThisWeek.intent')
     def get_reminders_for_this_week(self, msg=None):
