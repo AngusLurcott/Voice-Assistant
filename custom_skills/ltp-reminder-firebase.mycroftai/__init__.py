@@ -103,12 +103,12 @@ class ReminderSkill(MycroftSkill):
         if self.primed:
             for r in self.settings.get('reminders', []):
                 print('Checking {}'.format(r))
-                dt = deserialize(r[1])
+                dt = deserialize(r['date'])
                 if now > dt - timedelta(minutes=10) and now < dt and \
-                        r[0] not in self.cancellable:
+                        r['name'] not in self.cancellable:
                     handled_reminders.append(r)
-                    self.speak_dialog('ByTheWay', data={'reminder': r[0]})
-                    self.cancellable.append(r[0])
+                    self.speak_dialog('ByTheWay', data={'reminder': r['name']})
+                    self.cancellable.append(r['name'])
 
             self.primed = False
 
@@ -118,13 +118,13 @@ class ReminderSkill(MycroftSkill):
         now = now_local()
         handled_reminders = []
         for r in self.settings.get('reminders', []):
-            dt = deserialize(r[1])
+            dt = deserialize(r['date'])
             if now > dt:
                 play_wav(REMINDER_PING)
-                self.speak_dialog('Reminding', data={'reminder': r[0]})
+                self.speak_dialog('Reminding', data={'reminder': r['name']})
                 handled_reminders.append(r)
             if now > dt - timedelta(minutes=10):
-                self.add_notification(r[0], r[0], dt)
+                self.add_notification(r['name'], r['name'], dt)
         self.remove_handled(handled_reminders)
 
     def remove_handled(self, handled_reminders):
@@ -136,29 +136,32 @@ class ReminderSkill(MycroftSkill):
             Repeats a maximum of 3 times.
         """
         for r in handled_reminders:
-            if len(r) == 3:
-                repeats = r[2] + 1
+            if ('repeat' in r):
+                repeats = r['repeat'] + 1
             else:
                 repeats = 1
             self.settings['reminders'].remove(r)
             # If the reminer hasn't been repeated 3 times reschedule it
             if repeats < 3:
                 self.speak_dialog('ToCancelInstructions')
-                new_time = deserialize(r[1]) + timedelta(minutes=2)
+                new_time = deserialize(r['date']) + timedelta(minutes=2)
                 self.settings['reminders'].append(
-                        (r[0], serialize(new_time), repeats))
+                    {'name': r['name'],
+                    'date': serialize(new_time),
+                    'type': r['type'],
+                    'repeat': repeats})
 
                 # Make the reminder cancellable
-                if r[0] not in self.cancellable:
-                    self.cancellable.append(r[0])
+                if r['name'] not in self.cancellable:
+                    self.cancellable.append(r['name'])
             else:
                 # Do not schedule a repeat and remove the reminder from
                 # the list of cancellable reminders
-                self.cancellable = [c for c in self.cancellable if c != r[0]]
+                self.cancellable = [c for c in self.cancellable if c != r['name']]
 
     def remove_by_name(self, name):
         for r in self.settings.get('reminders', []):
-            if r[0] == name:
+            if r['name'] == name:
                 break
         else:
             return False  # No matching reminders found
@@ -176,12 +179,12 @@ class ReminderSkill(MycroftSkill):
         """
         serialized = serialize(new_time)
         for r in self.settings.get('reminders', []):
-            if r[0] == name:
+            if r['name'] == name:
                 break
         else:
             return False  # No matching reminders found
         self.settings['reminders'].remove(r)
-        self.settings['reminders'].append((r[0], serialized))
+        self.settings['reminders'].append({'name': r['name'], 'date': serialized, 'type': r['type']})
         return True
 
     def date_str(self, d):
@@ -220,13 +223,15 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     @skill_api_method
-    def append_new_reminder(self, reminder, serialized):
+    def append_new_reminder(self, reminder, serialized, reminderType=None):
         if 'reminders' in self.settings:
             print("Adding New Reminder to Existing Reminders List")
-            self.settings['reminders'].append((reminder, serialized))
+            self.settings['reminders'].append({'name': reminder, 'date': serialized, 'type': reminderType})
+            # self.settings['reminders'].append((reminder, serialized))
         else:
             print("Adding New Reminder List")
-            self.settings['reminders'] = [(reminder, serialized)]
+            self.settings['reminders'] = [{'name': reminder, 'date': serialized, 'type': reminderType}]
+            # self.settings['reminders'] = [(reminder, serialized)]
         return True
 
     def __save_reminder_local(self, reminder, reminder_time):
@@ -245,10 +250,8 @@ class ReminderSkill(MycroftSkill):
 
         # Store reminder
         serialized = serialize(reminder_time)
-        if 'reminders' in self.settings:
-            self.settings['reminders'].append((reminder, serialized))
-        else:
-            self.settings['reminders'] = [(reminder, serialized)]
+        # Normal reminders are saved as the default type in the list
+        self.append_new_reminder(reminder, serialized, 'default')
 
     def __save_unspecified_reminder(self, reminder):
         if 'unspec' in self.settings:
@@ -308,7 +311,7 @@ class ReminderSkill(MycroftSkill):
         date_str = self.date_str(date or now_local().date())
         # If no reminders exists for the provided date return;
         for r in self.settings['reminders']:
-            if deserialize(r[1]).date() == date.date():
+            if deserialize(r['date']).date() == date.date():
                 break
         else:  # Let user know that no reminders were removed
             self.speak_dialog('NoRemindersForDate', {'date': date_str})
@@ -319,23 +322,32 @@ class ReminderSkill(MycroftSkill):
             if 'reminders' in self.settings:
                 self.settings['reminders'] = [
                         r for r in self.settings['reminders']
-                        if deserialize(r[1]).date() != date.date()]
+                        if deserialize(r['date']).date() != date.date()]
 
     @intent_file_handler('GetRemindersForDay.intent')
     @skill_api_method
-    def get_reminders_for_day(self, msg=None):
+    def get_reminders_for_day(self, msg=None, reminderType=None, reminderDate=None):
         """ List all reminders for the specified date. """
-        if 'date' in msg.data:
-            date, _ = extract_datetime(msg.data['date'], lang=self.lang)
-        else:
-            date, _ = extract_datetime(msg.data['utterance'], lang=self.lang)
+        if msg is not None:
+            if 'date' in msg.data:
+                date, _ = extract_datetime(msg.data['date'], lang=self.lang)
+            else:
+                date, _ = extract_datetime(msg.data['utterance'], lang=self.lang)
 
         if 'reminders' in self.settings:
-            reminders = [r for r in self.settings['reminders']
-                         if deserialize(r[1]).date() == date.date()]
+            if reminderType is not None and reminderDate is not None:
+                reminders = [r for r in self.settings['reminders']
+                            if (deserialize(r['date']).date() == deserialize(reminderDate).date()) & (r['type'] == reminderType)]
+            else:
+                reminders = [r for r in self.settings['reminders']
+                            if deserialize(r['date']).date() == date.date()]
+
             if len(reminders) > 0:
                 for r in reminders:
-                    reminder, dt = (r[0], deserialize(r[1]))
+                    reminder, dt, reminderType = (r['name'], deserialize(r['date']), r['type'])
+                    # Do things with the reminder type to give a differnt reponse for the reminder
+
+                    # TODO: Needs to say the desired day to get a better idea of the reminder
                     self.speak(reminder + ' at ' + nice_time(dt))
                 return
         self.speak_dialog('NoUpcoming')
@@ -349,11 +361,18 @@ class ReminderSkill(MycroftSkill):
 
     @intent_file_handler('GetNextReminders.intent')
     @skill_api_method
-    def get_next_reminder(self, msg=None):
+    def get_next_reminder(self, msg=None, reminderType=None):
         """ Get the first upcoming reminder. """
         if len(self.settings.get('reminders', [])) > 0:
-            reminders = [(r[0], deserialize(r[1]))
-                         for r in self.settings['reminders']]
+            if reminderType is not None and reminderDate is not None:
+                reminders = [(r['name'], deserialize(r['date']), r['type'])
+                            for r in self.settings['reminders']
+                            if r['type'] == reminderType]
+            else:
+                # reminders = [r for r in self.settings['reminders']
+                #             if deserialize(r['date']).date() == date.date()]
+                reminders = [(r['name'], deserialize(r['date']), r['type'])
+                            for r in self.settings['reminders']]
             next_reminder = sorted(reminders, key=lambda tup: tup[1])[0]
 
             if is_today(next_reminder[1]):
@@ -405,21 +424,27 @@ class ReminderSkill(MycroftSkill):
             self.cancellable.remove(c)
 
     @intent_file_handler('GetRemindersForThisWeek.intent')
-    def get_reminders_for_this_week(self, msg=None):
+    @skill_api_method
+    def get_reminders_for_this_week(self, msg=None, reminderType=None):
         """ List all reminders for the specified date. """
         nextWeek = datetime.now() + timedelta(7)
         if 'reminders' in self.settings:
-            reminders = [r for r in self.settings['reminders']
-                         if deserialize(r[1]).date() <= nextWeek.date()]
+            if reminderType is not None:
+                reminders = [r for r in self.settings['reminders']
+                            if deserialize(r['date']).date() <= nextWeek.date() and r['type'] == reminderType]
+            else:
+                reminders = [r for r in self.settings['reminders']
+                            if deserialize(r['date']).date() <= nextWeek.date()]
             if len(reminders) > 0:
                 for r in reminders:
-                    reminder, dt = (r[0], deserialize(r[1]))
+                    reminder, dt, reminderType = (r['name'], deserialize(r['date']), r['type'])
                     self.speak(reminder + ' at ' + nice_time(dt))
                 return
         self.speak_dialog('NoUpcoming')
 
     @intent_file_handler('GetRemindersForDayInThisWeek.intent')
-    def get_reminders_for_day_in_this_week(self, msg=None):
+    @skill_api_method
+    def get_reminders_for_day_in_this_week(self, msg=None, day=None, reminderType=None):
         DAY_OF_WEEK = {
             "MONDAY": 0,
             "TUESDAY": 1,
@@ -432,24 +457,31 @@ class ReminderSkill(MycroftSkill):
         """ List all reminders for a day in the week. """
         today = datetime.now().weekday()
         # print("This is the day today,", today);
-        captured_day = msg.data['utterance'].split(' ')[-1].upper()
-        desired_day = DAY_OF_WEEK[captured_day]
-        # print("This is the captured date,", captured_day);
-        if(desired_day == today):
-            maxDate = datetime.now()
-        elif(captured_day in DAY_OF_WEEK):
-            if (today > desired_day):
-                dayDelta = (6 - today) + (desired_day + 1)
-            else:
-                dayDelta = abs(DAY_OF_WEEK[captured_day] - today)
-            maxDate = datetime.now() + timedelta(dayDelta)
+        if msg is not None:
+            captured_day = msg.data['utterance'].split(' ')[-1].upper()
+            desired_day = DAY_OF_WEEK[captured_day]
+            # print("This is the captured date,", captured_day);
+            if(desired_day == today):
+                maxDate = datetime.now()
+            elif(captured_day in DAY_OF_WEEK):
+                if (today > desired_day):
+                    dayDelta = (6 - today) + (desired_day + 1)
+                else:
+                    dayDelta = abs(DAY_OF_WEEK[captured_day] - today)
+                maxDate = datetime.now() + timedelta(dayDelta)
+        if day is not None:
+            maxDate = deserialize(day)
         # print("Looking for this date: ", maxDate.date())
         if 'reminders' in self.settings:
-            reminders = [r for r in self.settings['reminders']
-                         if deserialize(r[1]).date() == maxDate.date()]
+            if reminderType is not None:
+                reminders = [r for r in self.settings['reminders']
+                            if deserialize(r['date']).date() == maxDate.date() and r['type'] == reminderType]
+            else:
+                reminders = [r for r in self.settings['reminders']
+                            if deserialize(r['date']).date() == maxDate.date()]
             if len(reminders) > 0:
                 for r in reminders:
-                    reminder, dt = (r[0], deserialize(r[1]))
+                    reminder, dt, reminderType = (r['name'], deserialize(r['date']), r['type'])
                     self.speak(reminder + ' at ' + nice_time(dt))
                 return
         self.speak_dialog('NoUpcoming')
