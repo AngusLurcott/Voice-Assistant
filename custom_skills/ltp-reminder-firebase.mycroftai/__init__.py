@@ -321,24 +321,25 @@ class ReminderSkill(MycroftSkill):
                         r for r in self.settings['reminders']
                         if deserialize(r[1]).date() != date.date()]
 
-    # @intent_file_handler('GetRemindersForDay.intent')
-    # @skill_api_method
-    # def get_reminders_for_day(self, msg=None):
-    #     """ List all reminders for the specified date. """
-    #     if 'date' in msg.data:
-    #         date, _ = extract_datetime(msg.data['date'], lang=self.lang)
-    #     else:
-    #         date, _ = extract_datetime(msg.data['utterance'], lang=self.lang)
+    @intent_file_handler('GetRemindersForDay.intent')
+    @skill_api_method
+    def get_reminders_for_day(self, msg=None):
+        """ List all reminders for the specified date. """
+        if 'date' in msg.data:
+            date, _ = extract_datetime(msg.data['date'], lang=self.lang)
+        else:
+            date, _ = extract_datetime(msg.data['utterance'], lang=self.lang)
 
-    #     if 'reminders' in self.settings:
-    #         reminders = [r for r in self.settings['reminders']
-    #                      if deserialize(r[1]).date() == date.date()]
-    #         if len(reminders) > 0:
-    #             for r in reminders:
-    #                 reminder, dt = (r[0], deserialize(r[1]))
-    #                 self.speak(reminder + ' at ' + nice_time(dt))
-    #             return
-    #     self.speak_dialog('NoUpcoming')
+        if 'reminders' in self.settings:
+            reminders = [r for r in self.settings['reminders']
+                         if deserialize(r[1]).date() == date.date()]
+            if len(reminders) > 0:
+                for r in reminders:
+                    reminder, dt = (r[0], deserialize(r[1]))
+                    self.speak(reminder + ' at ' + nice_time(dt))
+                return
+        self.speak_dialog('NoUpcoming')
+
     @skill_api_method
     def get_all_reminders(self):
         if len(self.settings.get('reminders', [])) > 0:
