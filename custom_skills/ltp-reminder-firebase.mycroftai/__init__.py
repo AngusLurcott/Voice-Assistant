@@ -386,8 +386,6 @@ class ReminderSkill(MycroftSkill):
                 reminders = [r for r in self.settings['reminders']
                             if r['type'] == reminderType]
             else:
-                # reminders = [r for r in self.settings['reminders']
-                #             if deserialize(r['date']).date() == date.date()]
                 reminders = [r for r in self.settings['reminders']]
 
         if (len(reminders) > 0):
@@ -428,6 +426,17 @@ class ReminderSkill(MycroftSkill):
         for c in remove_list:
             self.cancellable.remove(c)
         return ret
+
+    @intent_file_handler('CancelNextReminder.intent')
+    def cancel_next(self, message):
+        if len(self.settings.get('reminders', [])) > 0:
+            reminders = [r for r in self.settings['reminders']]
+
+            next_reminder = sorted(reminders, key=lambda tup: tup['date'])[0]
+            self.settings['reminders'].remove(next_reminder)
+            self.speak('Reminder Cancelled')
+        else:
+            self.speak('No Upcoming Reminders to cancel')
 
     @intent_file_handler('CancelActiveReminder.intent')
     def cancel_active(self, message):
