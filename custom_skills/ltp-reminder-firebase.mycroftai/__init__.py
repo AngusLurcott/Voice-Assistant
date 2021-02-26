@@ -241,7 +241,7 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     @skill_api_method
-    def append_new_reminder(self, reminder, serialized, reminderType=None):
+    def append_new_reminder(self, reminder, serialized, reminderType='default'):
         if 'reminders' in self.settings:
             print("Adding New Reminder to Existing Reminders List")
             self.settings['reminders'].append({'name': reminder, 'date': serialized, 'type': reminderType})
@@ -382,7 +382,7 @@ class ReminderSkill(MycroftSkill):
     def get_next_reminder(self, msg=None, reminderType=None):
         """ Get the first upcoming reminder. """
         if len(self.settings.get('reminders', [])) > 0:
-            if reminderType is not None and reminderDate is not None:
+            if reminderType is not None:
                 reminders = [r for r in self.settings['reminders']
                             if r['type'] == reminderType]
             else:
@@ -390,28 +390,29 @@ class ReminderSkill(MycroftSkill):
                 #             if deserialize(r['date']).date() == date.date()]
                 reminders = [r for r in self.settings['reminders']]
 
+        if (len(reminders) > 0):
             next_reminder = sorted(reminders, key=lambda tup: tup['date'])[0]
             dt = deserialize(next_reminder['date'])
 
             if is_today(dt):
                 self.speak_dialog('NextToday',
-                                  data={'time': nice_time(dt),
+                                data={'time': nice_time(dt),
                                         'reminder': next_reminder['name']})
             elif is_tomorrow(dt):
                 self.speak_dialog('NextTomorrow',
-                                  data={'time': nice_time(dt),
+                                data={'time': nice_time(dt),
                                         'reminder': next_reminder['name']})
             elif is_within_week(dt):
                 """ List all reminders for a day in the week. """
                 reminderDay = get_day_of_date(dt)
                 # DAY_OF_WEEK[deserialize(r['date']).weekday()]
                 self.speak_dialog('NextReminderWithinWeek',
-                                  data={'time': nice_time(dt),
+                                data={'time': nice_time(dt),
                                         'date': reminderDay,
                                         'reminder': next_reminder['name']})
             else:
                 self.speak_dialog('NextOtherDate',
-                                  data={'time': nice_time(dt),
+                                data={'time': nice_time(dt),
                                         'date': nice_date(dt),
                                         'reminder': next_reminder['name']})
         else:
@@ -461,6 +462,7 @@ class ReminderSkill(MycroftSkill):
             else:
                 reminders = [r for r in self.settings['reminders']
                             if deserialize(r['date']).date() <= nextWeek.date()]
+            reminders = sorted(reminders, key=lambda tup: tup['date'])
             tempDay = None
             if len(reminders) > 0:
                 for r in reminders:
