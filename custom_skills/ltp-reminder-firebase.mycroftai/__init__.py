@@ -93,7 +93,7 @@ class ReminderSkill(MycroftSkill):
         # TODO Make this work better in test
         if isinstance(self.bus, MessageBusClient):
             self.bus.on('speak', self.prime)
-            self.bus.on('mycroft.skill.handler.complete', self.notify)
+            # self.bus.on('mycroft.skill.handler.complete', self.notify)
             self.bus.on('mycroft.skill.handler.start', self.reset)
 
         # Reminder checker event
@@ -110,25 +110,25 @@ class ReminderSkill(MycroftSkill):
     def reset(self, message):
         self.primed = False
 
-    def notify(self, message):
-        time.sleep(10)
-        if self.name in message.data.get('name', ''):
-            self.primed = False
-            return
+    # def notify(self, message):
+    #     time.sleep(10)
+    #     if self.name in message.data.get('name', ''):
+    #         self.primed = False
+    #         return
 
-        handled_reminders = []
-        now = now_local()
-        if self.primed:
-            for r in self.settings.get('reminders', []):
-                print('Checking {}'.format(r))
-                dt = deserialize(r['date'])
-                if now > dt - timedelta(minutes=10) and now < dt and \
-                        r['name'] not in self.cancellable:
-                    handled_reminders.append(r)
-                    self.speak_dialog('ByTheWay', data={'reminder': r['name']})
-                    self.cancellable.append(r['name'])
+    #     handled_reminders = []
+    #     now = now_local()
+    #     if self.primed:
+    #         for r in self.settings.get('reminders', []):
+    #             print('Checking {}'.format(r))
+    #             dt = deserialize(r['date'])
+    #             if now > dt - timedelta(minutes=10) and now < dt and \
+    #                     r['name'] not in self.cancellable:
+    #                 handled_reminders.append(r)
+    #                 self.speak_dialog('ByTheWay', data={'reminder': r['name']})
+    #                 self.cancellable.append(r['name'])
 
-            self.primed = False
+    #         self.primed = False
 
     def __check_reminder(self, message):
         """ Repeating event handler. Checking if a reminder time has been
@@ -160,7 +160,7 @@ class ReminderSkill(MycroftSkill):
                 repeats = 1
             self.settings['reminders'].remove(r)
             # If the reminer hasn't been repeated 3 times reschedule it
-            if repeats < 3:
+            if repeats < 2:
                 self.speak_dialog('ToCancelInstructions')
                 new_time = deserialize(r['date']) + timedelta(minutes=2)
                 self.settings['reminders'].append(
@@ -547,7 +547,7 @@ class ReminderSkill(MycroftSkill):
     def shutdown(self):
         if isinstance(self.bus, MessageBusClient):
             self.bus.remove('speak', self.prime)
-            self.bus.remove('mycroft.skill.handler.complete', self.notify)
+            # self.bus.remove('mycroft.skill.handler.complete', self.notify)
             self.bus.remove('mycroft.skill.handler.start', self.reset)
 
 
