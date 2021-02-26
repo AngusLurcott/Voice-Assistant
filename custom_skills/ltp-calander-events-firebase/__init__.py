@@ -34,11 +34,11 @@ import base64
 
 from mycroft.skills.api import SkillApi
 
-# Dummy JSON list of Events that would be fetched from the DB
+# # Dummy JSON list of Events that would be fetched from the DB
 FETCHED_EVENTS = [
     {
         "event_name": "Event 1",
-        "event_date": "2021-02-25 18:00:15+00:00"
+        "event_date": "2021-02-25 02:52:15+00:00"
     },
     {
         "event_name": "Doctor's Appointment",
@@ -47,8 +47,23 @@ FETCHED_EVENTS = [
     {
         "event_name": "Something Else on Calander",
         "event_date": "2021-02-26 17:00:15+00:00"
+    },
+    {
+        "event_name": "A Different thing on Calander",
+        "event_date": "2021-02-27 17:00:15+00:00"
     }
 ]
+
+# FETCHED_EVENTS = [
+#     {
+#         "event_name": "Goal 1 - Do Something",
+#         "event_date": "2021-02-27 10:57:15+00:00"
+#     },
+#     {
+#         "event_name": "Goal 2 - Do Something Else",
+#         "event_date": "2021-02-28 14:02:00+00:00"
+#     }
+# ]
 
 DAY_OF_WEEK = {
     "MONDAY": 0,
@@ -110,7 +125,6 @@ class CalanderEventFirebaseSkill(MycroftSkill):
     @intent_file_handler('GetRemindersForDay.intent')
     def get_calender_events_for_day(self, msg=None):
         """ List all reminders for the specified date. """
-        print("What even is this", msg)
         if msg is not None:
 
             if 'date' in msg.data:
@@ -124,8 +138,9 @@ class CalanderEventFirebaseSkill(MycroftSkill):
     @intent_file_handler('GetNextReminders.intent')
     def get_next_reminder(self, msg=None):
         """ Get the first upcoming reminder. """
+        print('Getting next calender event')
         reminderSkill = SkillApi.get('ltp-reminder-firebase.mycroftai')
-        reminderSkill.get_next_reminder('calender-event')
+        reminderSkill.get_next_reminder(reminderType='calender-event')
 
     # Adds the fetched JSON List into the reminders list
     def sync_remote_events_to_device(self):
@@ -139,6 +154,7 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
                 reminderSkill = SkillApi.get('ltp-reminder-firebase.mycroftai')
                 reminderSkill.append_new_reminder(reminder, serialized, 'calender-event')
+                # reminderSkill.append_new_reminder(reminder, serialized, 'other')
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')
@@ -164,19 +180,19 @@ class CalanderEventFirebaseSkill(MycroftSkill):
     @intent_file_handler('GetRemindersForDayInThisWeek.intent')
     def get_reminders_for_day_in_this_week(self, msg=None):
         """ List all reminders for a day in the week. """
-        today = datetime.now().weekday()
+        today = now_local().weekday()
         # print("This is the day today,", today);
         captured_day = msg.data['utterance'].split(' ')[-1].upper()
         desired_day = DAY_OF_WEEK[captured_day]
         # print("This is the captured date,", captured_day);
         if(desired_day == today):
-            maxDate = datetime.now()
+            maxDate = now_local()
         elif(captured_day in DAY_OF_WEEK):
             if (today > desired_day):
                 dayDelta = (6 - today) + (desired_day + 1)
             else:
                 dayDelta = abs(DAY_OF_WEEK[captured_day] - today)
-            maxDate = datetime.now() + timedelta(dayDelta)
+            maxDate = now_local() + timedelta(dayDelta)
         reminderSkill = SkillApi.get('ltp-reminder-firebase.mycroftai')
         reminderSkill.get_reminders_for_day_in_this_week(day=serialize(maxDate), reminderType='calender-event')
 
