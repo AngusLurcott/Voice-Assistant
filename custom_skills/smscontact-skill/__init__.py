@@ -42,15 +42,43 @@ class Smscontact(MycroftSkill):
 
     @intent_file_handler('smscontact.intent')
     def handle_smscontact(self, message):
-        self.speak_dialog('smscontact')
 
-        sms_contact_name = self.get_response().lower()
 
-        self.speak_dialog("What message would you like to send  " + sms_contact_name)
 
-        sms_message = self.get_response()
+        confirm_response = 'no'
 
-    
+        sms_contact_name = 'default'
+        while confirm_response!='yes':
+
+            self.speak_dialog('smscontact')
+            sms_contact_name = self.get_response().lower()
+
+
+            self.speak_dialog('Is ' + sms_contact_name + ' the contact you would like to message?')
+
+            confirm_response = self.ask_yesno('')
+
+
+        sms_message = 'default'
+
+        confirm_message = 'no'
+
+        while confirm_message!='yes':
+
+            self.speak_dialog("What message would you like to send  " + sms_contact_name)
+
+            sms_message = self.get_response()
+
+            self.speak_dialog('Can you confirm that this is the correct message?')
+            self.speak_dialog(sms_message)
+
+            confirm_message = self.ask_yesno('')
+
+
+
+
+
+        
         contacts = self.db.child("contacts/{}".format(self.user_id)).order_by_child("name").equal_to(sms_contact_name).get().val()
 
 
@@ -66,7 +94,7 @@ class Smscontact(MycroftSkill):
 
         self.speak_dialog("Message sent")
 
-
+      
 
 def create_skill():
     return Smscontact()
