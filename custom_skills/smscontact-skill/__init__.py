@@ -79,20 +79,28 @@ class Smscontact(MycroftSkill):
 
 
         
-        contacts = self.db.child("contacts/{}".format(self.user_id)).order_by_child("name").equal_to(sms_contact_name).get().val()
+        try:
+            contacts = self.db.child("contacts/{}".format(self.user_id)).order_by_child("name").equal_to(sms_contact_name).get().val()
+
+   
 
 
-        values = list(contacts.values())
+            values = list(contacts.values())
 
-        phone_number = 0
+            phone_number = 0
 
-        for s in range(len(values)):
-            phone_number = values[s]['number']
+            for s in range(len(values)):
+                phone_number = values[s]['number']
 
 
-        self.sendMessage(phone_number, sms_message)
+            self.sendMessage(phone_number, sms_message)
 
-        self.speak_dialog("Message sent")
+            self.speak_dialog("Message sent")
+        
+
+        except:
+            self.speak_dialog("Error, contact not found")
+
 
       
 
