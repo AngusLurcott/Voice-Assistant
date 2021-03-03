@@ -12,7 +12,7 @@ from itertools import islice
 import mycroft.skills.firebase_connection as firebase
  
 
-class Smscontact(MycroftSkill):
+class SmsContact(MycroftSkill):
 
 
 
@@ -35,13 +35,13 @@ class Smscontact(MycroftSkill):
 
     # Send message method
     #
-    def sendMessage(self, phone_number, sms):
+    def send_message(self, phone_number, sms):
 
         self.client.messages.create(phones=phone_number, text = sms)
         
 
     @intent_file_handler('smscontact.intent')
-    def handle_smscontact(self, message):
+    def handle_sms_contact(self, message):
 
 
 
@@ -93,7 +93,7 @@ class Smscontact(MycroftSkill):
                 phone_number = values[s]['number']
 
 
-            self.sendMessage(phone_number, sms_message)
+            self.send_message(phone_number, sms_message)
 
             self.speak_dialog("Message sent")
         
@@ -105,5 +105,4 @@ class Smscontact(MycroftSkill):
       
 
 def create_skill():
-    return Smscontact()
-
+    return SmsContact()

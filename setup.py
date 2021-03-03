@@ -82,6 +82,7 @@ setup(
         ]
     }
 )
+<<<<<<< HEAD
 
 #config settings for firebase
 config = {
@@ -104,3 +105,5 @@ db = firebase.database()
 users = db.child("users").get()
 
 print(users.val() + "YES")
+=======
+>>>>>>> 6a034cb845c8918becbc0649f4bdbf263463c570
