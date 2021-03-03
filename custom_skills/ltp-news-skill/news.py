@@ -9,7 +9,7 @@ import math
 RSS_FEEDS = {
     'World': 'http://feeds.bbci.co.uk/news/uk/rss.xml',
     'Business': 'http://feeds.bbci.co.uk/news/business/rss.xml',
-    'Sports': 'http://feeds.bbci.co.uk/sport/rss.xml',
+    # 'Sports': 'http://feeds.bbci.co.uk/sport/rss.xml',
     # 'Travel' : 'http://newsrss.bbc.co.uk/rss/newsonline_uk_edition/england/travel/rss.xml',
     'Entertainment': 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
     'Science': 'http://feeds.bbci.co.uk/news/science_and_environment/rss.xml?edition=uk',
@@ -21,8 +21,9 @@ RSS_FEEDS = {
 def getHTMLdocument(url):
     # request for HTML document of given url
     response = requests.get(url)
+    response.encoding = 'utf-8'
     # response will be provided in JSON format
-    return response.text
+    return response.content
 
 
 def read_article(url):
@@ -50,12 +51,12 @@ def read_article(url):
         if(max_lines == total_lines):
             break
         if(max_lines < total_lines):
-            read_next = input('Do you want to continue? y/n')
+            read_next = input('Do you want to continue? (y/n) ')
             if (read_next == 'y'):
                 lines += 4
                 continue
-        else:
-            break
+            else:
+                break
 
 
 def get_articles():
