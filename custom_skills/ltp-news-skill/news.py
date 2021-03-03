@@ -26,6 +26,29 @@ def getHTMLdocument(url):
     return response.content
 
 
+def get_feed_list():
+    keys = list(RSS_FEEDS.keys())
+    print("Here are the avaliable Topics:", )
+    for i in range(0, len(keys)):
+        print(f"{i + 1}. {keys[i]}")
+    return keys
+
+
+def choose_topic():
+    keys = get_feed_list()
+    while True:
+        topic_value_input = int(input("What topic would you like to get news about? "))
+        if(topic_value_input <= len(keys)):
+            print("Chosen topic: ", keys[topic_value_input-1])
+            break
+        else:
+            print('Please choose a valid topic number')
+    chosen_feed = RSS_FEEDS[keys[topic_value_input-1]]
+    print(f"Feed Chosen: {chosen_feed}")
+    print("")
+    return chosen_feed
+
+
 def read_article(url):
     print(url)
     html_document = getHTMLdocument(url)
@@ -60,8 +83,9 @@ def read_article(url):
 
 
 def get_articles():
-    print("Getting RSS feed from: ", RSS_FEEDS['Travel'])
-    fp = feedparser.parse(RSS_FEEDS['Travel'])
+    chosen_feed = choose_topic()
+    print("Getting RSS feed from: ", chosen_feed)
+    fp = feedparser.parse(chosen_feed)
     # Currently reading the 5th and 6th articles from the rss feed list
     items = fp.entries[:3]
     for article in items:
@@ -70,7 +94,7 @@ def get_articles():
         print(article.summary)
         print(article.link)
 
-        read = input("Do you want to read this article in more detail? y/n")
+        read = input("Do you want to read this article in more detail? (y/n) ")
         if (read == 'y'):
             print("===== Article Content")
             read_article(article.link)
