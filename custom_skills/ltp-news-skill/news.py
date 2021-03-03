@@ -3,6 +3,7 @@ import re
 from bs4 import BeautifulSoup
 import requests
 import math
+from dateutil import parser
 
 # TODO: Add more RSS Feed urls
 # Constant Dict of various RSS Feeds
@@ -82,13 +83,26 @@ def read_article(url):
                 break
 
 
-def get_articles():
-    chosen_feed = choose_topic()
-    print("Getting RSS feed from: ", chosen_feed)
-    fp = feedparser.parse(chosen_feed)
-    # Currently reading the 5th and 6th articles from the rss feed list
-    items = fp.entries[:3]
-    for article in items:
+def filter_articles_by_published(articles):
+    return sorted(articles, key=lambda i: parser.parse(i.published), reverse=True)
+
+
+def get_articles(topics=[]):
+    if len(topics) > 0:
+        articles = []
+        for topic in topics:
+            fp = feedparser.parse(RSS_FEEDS[topic])
+            articles += fp.entries[:3]
+        print('list of articles', articles)
+        articles = filter_articles_by_published(articles)
+    else:
+        chosen_feed = choose_topic()
+        print("Getting RSS feed from: ", chosen_feed)
+        fp = feedparser.parse(chosen_feed)
+        # Currently reading the 5th and 6th articles from the rss feed list
+        articles = fp.entries[:3]
+
+    for article in articles:
         print("==== Article Information ====")
         print(article.title)
         print(article.summary)
@@ -131,4 +145,4 @@ def clean_html(raw_html):
 
 
 # Calling method to start script
-get_articles()
+get_articles(['World', 'Business'])
