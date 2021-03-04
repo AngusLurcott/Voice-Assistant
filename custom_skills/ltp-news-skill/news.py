@@ -3,6 +3,7 @@ import re
 from bs4 import BeautifulSoup
 import requests
 import math
+import cytoolz
 from dateutil import parser
 
 # TODO: Add more RSS Feed urls
@@ -107,7 +108,7 @@ def get_articles(topics=[]):
         fp = feedparser.parse(chosen_feed)
         # Currently reading the 5th and 6th articles from the rss feed list
         articles = fp.entries[:3]
-    print()
+    articles = list(cytoolz.unique(articles, key=lambda x: x.title))
     for i in range(0, len(articles)):
         print(f"Article {i + 1}")
         print(articles[i].title)
@@ -171,4 +172,4 @@ def clean_html(raw_html):
 
 
 # Calling method to start script
-get_articles([])
+get_articles(['World', 'Health'])
