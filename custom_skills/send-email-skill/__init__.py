@@ -18,8 +18,6 @@ class SendEmail(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
 
-
-
     def initialize(self):
 
         #Connecting to firebase
@@ -31,9 +29,6 @@ class SendEmail(MycroftSkill):
         self.EMAIL_ADDRESS = 'cardiffsmartspeaker@gmail.com'
         self.EMAIL_PASSWORD = 'TM]*N#m}bc<2_sDk'
 
-
-
-
     def send_mail(self, to_email_address, email_text):
 
         msg = EmailMessage()
@@ -41,7 +36,6 @@ class SendEmail(MycroftSkill):
         msg['From'] = 'cardiffsmartspeaker@gmail.com'
         msg['To'] = to_email_address
         msg.set_content(email_text)
-
 
         try:
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -62,11 +56,9 @@ class SendEmail(MycroftSkill):
 
             email_contact_name = self.get_response().lower()
 
-
             self.speak_dialog('Is ' + email_contact_name + ' the contact you would like to email?')
 
             confirm_response = self.ask_yesno('')
-
 
         email_text = 'default'
 
@@ -83,16 +75,8 @@ class SendEmail(MycroftSkill):
 
             confirm_message = self.ask_yesno('')
 
-
-
-
-
-
         try:
             contacts = self.db.child("contacts/{}".format(self.user_id)).order_by_child("name").equal_to(email_contact_name).get().val()
-
-   
-
 
             values = list(contacts.values())
 
@@ -101,24 +85,12 @@ class SendEmail(MycroftSkill):
             for s in range(len(values)):
                 email_address = values[s]['email']
 
-
             self.send_mail(email_address, email_text)
 
             self.speak_dialog("Message sent")
 
-
         except:
             self.speak_dialog("Error, contact not found")
-
-
-
-
-
-
-
-
-        
-
 
 def create_skill():
     return SendEmail()
