@@ -40,7 +40,7 @@ def get_feed_list():
 def choose_topic():
     keys = get_feed_list()
     while True:
-        topic_value_input = int(input("What topic would you like to get news about? "))
+        topic_value_input = int(input("What topic number would you like to get news about? "))
         if(topic_value_input <= len(keys)):
             print("Chosen topic: ", keys[topic_value_input-1])
             break
@@ -62,26 +62,30 @@ def read_article(url):
     # Read only 4 lines and then ask for if they want more?
     repeat = math.ceil(len(paragraphs)/4)
     print('Lines', len(paragraphs))
-    print("Repeats", repeat)
+    # print("Repeats", repeat)
     total_lines = len(paragraphs)
     lines = 0
 
     while lines < total_lines:
         print("Reading from line: ", lines, " of ", total_lines)
+        print()
         temp_max = lines + 4
         # Ternary operator to calculate the maximum lines to read in this loop
         max_lines = total_lines if (temp_max > total_lines) else temp_max
-        print("Value of max lines ", max_lines)
+        # print("Value of max lines ", max_lines)
         for paragraph in paragraphs[lines:max_lines]:
             print(paragraph.text)
         if(max_lines == total_lines):
             break
         if(max_lines < total_lines):
+            print()
             read_next = input('Do you want to continue? (y/n) ')
             if (read_next == 'y'):
                 lines += 4
+                print()
                 continue
             else:
+                print()
                 break
 
 
@@ -95,7 +99,7 @@ def get_articles(topics=[]):
         for topic in topics:
             fp = feedparser.parse(RSS_FEEDS[topic])
             articles += fp.entries[:3]
-        print('list of articles', articles)
+        # print('list of articles', articles)
         articles = filter_articles_by_published(articles)
     else:
         chosen_feed = choose_topic()
@@ -103,18 +107,26 @@ def get_articles(topics=[]):
         fp = feedparser.parse(chosen_feed)
         # Currently reading the 5th and 6th articles from the rss feed list
         articles = fp.entries[:3]
-
-    for article in articles:
-        print("==== Article Information ====")
-        print(article.title)
-        print(article.summary)
-        print(article.link)
-
+    print()
+    for i in range(0, len(articles)):
+        print(f"Article {i + 1}")
+        print(articles[i].title)
+        print(articles[i].published)
+        print()
+    print()
+    for i in range(0, len(articles)):
+        print(f"==== Article {i + 1} Information ====")
+        print(articles[i].title)
+        print(articles[i].summary)
+        print(articles[i].link)
+        print()
         read = input("Do you want to read this article in more detail? (y/n) ")
         if (read == 'y'):
-            print("===== Article Content")
-            read_article(article.link)
+            print()
+            print(f"===== Article {i + 1} Content ====")
+            read_article(articles[i].link)
         else:
+            print()
             continue
 
 
@@ -159,4 +171,4 @@ def clean_html(raw_html):
 
 
 # Calling method to start script
-get_articles(['World', 'Business'])
+get_articles([])
