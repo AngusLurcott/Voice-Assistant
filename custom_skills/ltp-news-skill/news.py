@@ -17,6 +17,8 @@ RSS_FEEDS = {
     'Health': 'http://feeds.bbci.co.uk/news/health/rss.xml?edition=uk'
 }
 
+USER_INFORMATION = {}
+
 
 # function to extract html document from given url
 def getHTMLdocument(url):
@@ -118,7 +120,10 @@ def get_articles(topics=[]):
 
 # TODO: Cache results for specific topics and users
 def get_news_for_user(user_id=None):
-    pass
+    if(USER_INFORMATION['topics'] is not None):
+        pass
+    else:
+        print('You have not subscribed to any feeds')
 
 
 # TODO: Add calender events to read new article for topic
@@ -128,12 +133,21 @@ def check_new_article(user_id=None):
 
 # TODO: Add feed to user data
 def subscribe_to_feed(topic, user_id=None):
-    pass
+    if(USER_INFORMATION['topics'] is not None):
+        print("Here are the topics your are subscribed to: ", USER_INFORMATION['topics'])
+    else:
+        print('You have not subscribed to any feeds')
+    print('---')
+    get_feed_list()
 
 
 # TODO: Remove rss feed from user data
 def unsubscribe_from_feed(topic, user_id=None):
-    pass
+    # get_feed_list()
+    if(USER_INFORMATION['topics'] is not None):
+        print("Here are the topics your are subscribed to: ", USER_INFORMATION['topics'])
+    else:
+        print('You have not subscribed to any feeds')
 
 
 def clean_html(raw_html):
