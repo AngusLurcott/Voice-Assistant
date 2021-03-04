@@ -26,4 +26,36 @@ from mycroft.messagebus.client import MessageBusClient
 from requests import HTTPError
 import base64
 
-from mycroft.skills.api import SkillApi
+# Import the firebase util file for firebase connection
+import mycroft.skills.firebase_connection as firebase
+
+
+USER_INFORMATION = {'topics': []}
+
+
+class RssNewsSkill(MycroftSkill):
+    def __init__(self):
+        super(RssNewsSkill, self).__init__()
+
+    def initialize(self):
+        # Initialising the Database Connection to Firebase
+        # self.db = firebase.initialize_firebase_connection()
+        pass
+
+    @intent_file_handler('SubscribeToNewsTopic.intent')
+    def subscribe_to_topic(self, msg=None):
+        if msg is not None:
+            try:
+                topic = msg.data['topic']
+                self.speak(topic)
+            except:
+                self.speak('No topic found')
+                print("I didn't find any topic in the utterance so I will ask you now")
+
+    @intent_file_handler('UnsubscribeToNewsTopic.intent')
+    def unsubscribe_from_topic(self, msg=None):
+        pass
+
+
+def create_skill():
+    return RssNewsSkill()
