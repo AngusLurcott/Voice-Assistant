@@ -21,7 +21,7 @@ from mycroft.util.time import now_local
 from mycroft.util.format import nice_time, nice_date
 from mycroft.util.log import LOG
 from mycroft.util import play_wav
-from mycroft.audio import wait_while_speaking
+from mycroft.audio import wait_while_speaking, wait_for_response
 from mycroft.messagebus.client import MessageBusClient
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
@@ -65,8 +65,9 @@ class RssNewsSkill(MycroftSkill):
         self.speak("Here are the avaliable Topics:")
         time.sleep(1)
         for i in range(0, len(keys)):
-            time.sleep(1)
+            time.sleep(0.3)
             self.speak(f"{i + 1}. {keys[i]}")
+            wait_while_speaking()
         return keys
 
     @intent_file_handler('SubscribeToNewsTopic.intent')
@@ -84,10 +85,11 @@ class RssNewsSkill(MycroftSkill):
 
     def choose_topic(self):
         keys = self.get_feed_list()
-        while True:
-            time.sleep(5)
+        repeat = 0
+        while True and repeat < 2:
             self.speak('Tell me the topic you want news about')
             wait_while_speaking()
+            wait_for_response()
             response = self.get_response()
             try:
                 response = response.lower().capitalize()
@@ -98,14 +100,50 @@ class RssNewsSkill(MycroftSkill):
                     self.speak(f"{response} is not in the avaliable choices")
             except:
                 self.speak("Something went wrong")
+            repeat += 1
         chosen_feed = RSS_FEEDS[response]
         print(f"Feed Chosen: {chosen_feed}")
         print("")
         return chosen_feed
 
+    def get_articles(self, topics=[]):
+        if len(topics) > 0:
+            articles = []
+            for topic in topics:
+                self.speak('Topic: ', topic)
+                wait_while_speaking()
+                fp = feedparser.parse(RSS_FEEDS[topic])
+                articles += fp.entries[:3]
+            time.sleep(1)
+            # print('list of articles', articles)
+            articles = filter_articles_by_published(articles)
+        else:
+            chosen_feed = self.choose_topic()
+            self.speak("Getting RSS feed from: ", chosen_feed)
+            wait_while_speaking()
+            fp = feedparser.parse(chosen_feed)
+            # Currently reading the 5th and 6th articles from the rss feed list
+            articles = fp.entries[:3]
+        articles = list(cytoolz.unique(articles, key=lambda x: x.title))
+        for i in range(0, len(articles)):
+            self.speak(f"Article {i + 1}")
+            wait_while_speaking()
+            self.speak(articles[i].title)
+            wait_while_speaking()
+            self.speak(articles[i].published)
+            wait_while_speaking()
+
     @intent_file_handler('UnsubscribeToNewsTopic.intent')
     def unsubscribe_from_topic(self, msg=None):
         pass
+
+    @intent_file_handler('GiveUserNews.intent')
+    def give_user_news(self, msg=None):
+        if(USER_INFORMATION['topics'] is not None and len(USER_INFORMATION['topics'] > 0)):
+            print('I got some topics')
+            self.get_articles(USER_INFORMATION['topics'])
+        else:
+            self.speak('There are no topics')
 
 
 def create_skill():
