@@ -72,14 +72,41 @@ class RssNewsSkill(MycroftSkill):
             time.sleep(0.3)
             self.speak(f"{i + 1}. {keys[i]}")
             wait_while_speaking()
-        return keys
+
+    def check_if_topic_is_valid(self, topic):
+        return (topic in self.get_feed_list())
+
+    def check_if_user_has_topic(self, topic):
+        if USER_INFORMATION['topics'] is not None and len(USER_INFORMATION['topics']) > 0:
+            if (topic in USER_INFORMATION['topics']):
+                return True
+        # self.speak('You currently are not subscribed to any news')
+        # wait_while_speaking()
+        return False
+
+    def add_topic_into_user_infomation(self, topic):
+        if check_if_user_has_topic(topic):
+            self.speak(f'You are already subscribed to {topic}')
+            wait_while_speaking()
+        else:
+            try:
+                if "topic" in USER_INFORMATION:
+                    USER_INFORMATION['topic'].append(topic)
+                else:
+                    USER_INFORMATION['topic'] = [topic]
+            self.speak(f"{topic} has been added")
+            wait_while_speaking()
 
     @intent_file_handler('SubscribeToNewsTopic.intent')
     def subscribe_to_topic(self, msg=None):
         if msg is not None:
             try:
                 topic = msg.data['topic']
-                self.speak(topic)
+                if check_if_topic_is_valid(topic):
+                    self.add_topic_into_user_infomation(topic)
+                else:
+                    self.speak('The topic you said is not avaliable')
+                    wait_while_speaking()
                 # add_topic_to_user(topic)
             except:
                 self.speak('No topic found')
