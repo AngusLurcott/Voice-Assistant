@@ -92,9 +92,29 @@ class RssNewsSkill(MycroftSkill):
             try:
                 if "topic" in USER_INFORMATION:
                     USER_INFORMATION['topic'].append(topic)
+
                 else:
                     USER_INFORMATION['topic'] = [topic]
-            self.speak(f"{topic} has been added")
+                self.speak(f"{topic} has been added")
+                wait_while_speaking()
+            except:
+                self.speak("Something went wrong when subscribing")
+                wait_while_speaking()
+
+    def remove_topic_from_user_information(self, topic):
+        if check_if_user_has_topic(topic):
+            self.speak(f'Unsubscribing from {topic}')
+            wait_while_speaking()
+            try:
+                if "topic" in USER_INFORMATION:
+                    USER_INFORMATION['topic'].remove(topic)
+                else:
+                    USER_INFORMATION['topic'] = []
+            except:
+                self.speak("Something went wrong when unsubscribing")
+                wait_while_speaking()
+        else:
+            self.speak(f"You are already not subscribed to this topic")
             wait_while_speaking()
 
     @intent_file_handler('SubscribeToNewsTopic.intent')
@@ -113,6 +133,22 @@ class RssNewsSkill(MycroftSkill):
                 print("I didn't find any topic in the utterance so I will ask you now")
                 self.choose_topic()
                 # add_topic_to_user(topic)
+
+    @intent_file_handler('UnsubscribeFromNewsTopic.intent')
+    def unsubscribe_from_topic(self, msg=None):
+        if msg is not None:
+            try:
+                topic = msg.data['topic']
+                if check_if_topic_is_valid(topic):
+                    self.remove_topic_from_user_information(topic)
+                else:
+                    self.speak('The topic you said is not avaliable')
+                    wait_while_speaking()
+                # add_topic_to_user(topic)
+            except:
+                self.speak('No topic found')
+                print("I didn't find any topic in the utterance so I will ask you now")
+                # TODO: add in logic to show all available user topics
 
     def choose_topic(self):
         keys = self.say_feed_list()
