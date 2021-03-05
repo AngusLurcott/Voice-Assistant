@@ -62,6 +62,10 @@ class RssNewsSkill(MycroftSkill):
 
     def get_feed_list(self):
         keys = list(RSS_FEEDS.keys())
+        return keys
+
+    def say_feed_list(self):
+        keys = self.get_feed_list()
         self.speak("Here are the avaliable Topics:")
         time.sleep(1)
         for i in range(0, len(keys)):
@@ -84,7 +88,7 @@ class RssNewsSkill(MycroftSkill):
                 # add_topic_to_user(topic)
 
     def choose_topic(self):
-        keys = self.get_feed_list()
+        keys = self.say_feed_list()
         repeat = 0
         while True and repeat < 2:
             self.speak('Tell me the topic you want news about')
