@@ -60,6 +60,14 @@ class RssNewsSkill(MycroftSkill):
         # self.db = firebase.initialize_firebase_connection()
         pass
 
+    # function to extract html document from given url
+    def getHTMLdocument(self, url):
+        # request for HTML document of given url
+        response = requests.get(url)
+        response.encoding = 'utf-8'
+        # response will be provided in JSON format
+        return response.content
+
     def get_feed_list(self):
         keys = list(RSS_FEEDS.keys())
         return keys
@@ -173,6 +181,9 @@ class RssNewsSkill(MycroftSkill):
         print("")
         return chosen_feed
 
+    def filter_articles_by_published(self, articles):
+        return sorted(articles, key=lambda i: parser.parse(i.published), reverse=True)
+
     def get_articles(self, topics=[]):
         if len(topics) > 0:
             articles = []
@@ -183,7 +194,7 @@ class RssNewsSkill(MycroftSkill):
                 articles += fp.entries[:3]
             time.sleep(1)
             # print('list of articles', articles)
-            articles = filter_articles_by_published(articles)
+            articles = self.filter_articles_by_published(articles)
         else:
             chosen_feed = self.choose_topic()
             self.speak("Getting RSS feed from: ", chosen_feed)
@@ -200,9 +211,43 @@ class RssNewsSkill(MycroftSkill):
             self.speak(articles[i].published)
             wait_while_speaking()
 
-    @intent_file_handler('UnsubscribeToNewsTopic.intent')
-    def unsubscribe_from_topic(self, msg=None):
-        pass
+    @intent_file_handler('ReadArticleInDetail.intent')
+    def read_article_in_detail(self, msg=None):
+        # TODO: Get article number or name from feed list
+        # Currently need to get the url from the article
+        html_document = self.getHTMLdocument(url)
+
+        # create soap object
+        soup = BeautifulSoup(html_document, 'html.parser')
+        paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
+        # Read only 4 lines and then ask for if they want more?
+        repeat = math.ceil(len(paragraphs)/4)
+        print('Lines', len(paragraphs))
+        # print("Repeats", repeat)
+        total_lines = len(paragraphs)
+        lines = 0
+
+        while lines < total_lines:
+            print("Reading from line: ", lines, " of ", total_lines)
+            print()
+            temp_max = lines + 4
+            # Ternary operator to calculate the maximum lines to read in this loop
+            max_lines = total_lines if (temp_max > total_lines) else temp_max
+            # print("Value of max lines ", max_lines)
+            for paragraph in paragraphs[lines:max_lines]:
+                self.speak(paragraph.text)
+                wait_while_speaking()
+            if(max_lines == total_lines):
+                break
+            if(max_lines < total_lines):
+                print()
+                response = ask_yesno(prompt="Do you want to continue?")
+                read_next = input('Do you want to continue? (y/n) ')
+                if (response == 'yes'):
+                    lines += 4
+                    continue
+                else:
+                    break
 
     @intent_file_handler('GiveUserNews.intent')
     def give_user_news(self, msg=None):
