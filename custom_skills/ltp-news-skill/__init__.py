@@ -257,6 +257,27 @@ class RssNewsSkill(MycroftSkill):
         else:
             self.speak('There are no topics')
 
+    @intent_file_handler('GiveNewsByTopic.intent')
+    def give_news_by_topic(self, msg=None):
+        if msg is not None:
+            try:
+                topic = msg.data['topic']
+                if check_if_topic_is_valid(topic):
+                    if check_if_user_has_topic(topic):
+                    else:
+                        print('You are not currently subscribed to this topic')
+                        reponse = ask_yesno('Would you like to get updates for this topic?')
+                        if (response == 'yes'):
+                            add_topic_into_user_infomation(topic)
+                            get_articles(topics=[topic])
+                        else:
+                            pass
+                else:
+                    self.speak('The topic you said is not avaliable')
+                    wait_while_speaking()
+            except:
+                self.speak('I had a problem trying to get the topic you said, please try again')
+
 
 def create_skill():
     return RssNewsSkill()
