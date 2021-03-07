@@ -21,6 +21,7 @@ from mycroft.util.parse import extract_datetime, normalize
 from mycroft.util.time import now_local
 from mycroft.util.format import nice_time, nice_date
 from mycroft.util.log import LOG
+from mycroft.audio import wait_while_speaking
 from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
 
@@ -291,11 +292,14 @@ class ReminderSkill(MycroftSkill):
         if response and is_affirmative(response):
             # Check if a time was also in the response
             dt, rest = extract_datetime(response) or (None, None)
-            if dt:
+            # print(f'This is the extra of the dt: {dt} and {rest}')
+            if dt is None:
                 # No time found in the response
                 response = self.get_response('SpecifyTime')
                 dt, rest = extract_datetime(response) or None, None
-                if dt:
+                dt = dt[0]
+                # print(f'New DT: {dt} and {rest}')
+                if dt is None or response is None:
                     self.speak('Fine, be that way')
                     return
 
