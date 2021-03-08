@@ -21,7 +21,7 @@ from mycroft.util.time import now_local
 from mycroft.util.format import nice_time, nice_date
 from mycroft.util.log import LOG
 from mycroft.util import play_wav
-from mycroft.audio import wait_while_speaking, wait_for_response
+from mycroft.audio import wait_while_speaking
 from mycroft.messagebus.client import MessageBusClient
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
@@ -93,7 +93,7 @@ class RssNewsSkill(MycroftSkill):
         return False
 
     def add_topic_into_user_infomation(self, topic):
-        if check_if_user_has_topic(topic):
+        if self.check_if_user_has_topic(topic):
             self.speak(f'You are already subscribed to {topic}')
             wait_while_speaking()
         else:
@@ -110,7 +110,7 @@ class RssNewsSkill(MycroftSkill):
                 wait_while_speaking()
 
     def remove_topic_from_user_information(self, topic):
-        if check_if_user_has_topic(topic):
+        if self.check_if_user_has_topic(topic):
             self.speak(f'Unsubscribing from {topic}')
             wait_while_speaking()
             try:
@@ -130,7 +130,7 @@ class RssNewsSkill(MycroftSkill):
         if msg is not None:
             try:
                 topic = msg.data['topic']
-                if check_if_topic_is_valid(topic):
+                if self.check_if_topic_is_valid(topic):
                     self.add_topic_into_user_infomation(topic)
                 else:
                     self.speak('The topic you said is not avaliable')
@@ -147,7 +147,7 @@ class RssNewsSkill(MycroftSkill):
         if msg is not None:
             try:
                 topic = msg.data['topic']
-                if check_if_topic_is_valid(topic):
+                if self.check_if_topic_is_valid(topic):
                     self.remove_topic_from_user_information(topic)
                 else:
                     self.speak('The topic you said is not avaliable')
@@ -241,8 +241,7 @@ class RssNewsSkill(MycroftSkill):
                 break
             if(max_lines < total_lines):
                 print()
-                response = ask_yesno(prompt="Do you want to continue?")
-                read_next = input('Do you want to continue? (y/n) ')
+                response = self.ask_yesno(prompt="Do you want to continue?")
                 if (response == 'yes'):
                     lines += 4
                     continue
@@ -262,20 +261,22 @@ class RssNewsSkill(MycroftSkill):
         if msg is not None:
             try:
                 topic = msg.data['topic']
-                if check_if_topic_is_valid(topic):
-                    if check_if_user_has_topic(topic):
+                if self.check_if_topic_is_valid(topic):
+                    if self.check_if_user_has_topic(topic):
+                        articles = self.get_articles(topics=[topic])
                     else:
                         print('You are not currently subscribed to this topic')
-                        reponse = ask_yesno('Would you like to get updates for this topic?')
+                        self.speak('Would you like to get updates for this topic?')
+                        wait_while_speaking()
+                        response = self.get_response()
                         if (response == 'yes'):
-                            add_topic_into_user_infomation(topic)
-                            get_articles(topics=[topic])
+                            self.add_topic_into_user_infomation(topic)
                         else:
                             pass
                 else:
                     self.speak('The topic you said is not avaliable')
                     wait_while_speaking()
-            except:
+            except Exception as e:
                 self.speak('I had a problem trying to get the topic you said, please try again')
 
 
