@@ -60,6 +60,26 @@ def is_affirmative(utterance, lang='en-us'):
     return False
 
 
+def get_best_matching_title(articles, utterance):
+    """ Check the items against the utterance and see which matches best. """
+    item_rating_list = []
+    for article in articles:
+        title = article.title
+        # words = get_interesting_words(title)
+        words = title.split(' ')
+        item_rating_list.append((calc_rating(words, utterance), article))
+    return sorted(item_rating_list)[-1]
+
+
+def calc_rating(words, utterance):
+    """ Rate how good a title matches an utterance. """
+    rating = 0
+    for w in words:
+        if w.lower() in utterance.lower():
+            rating += 1
+    return rating
+
+
 class RssNewsSkill(MycroftSkill):
     def __init__(self):
         super(RssNewsSkill, self).__init__()
@@ -235,17 +255,20 @@ class RssNewsSkill(MycroftSkill):
     def read_article_in_detail(self, msg=None):
         # TODO: Get article number or name from feed list
         # Currently need to get the url from the article
-        articles = self.get_articles(topics=['Business'])
-        html_document = self.getHTMLdocument(articles[0].link)
+        if ('utterance' in msg.data):
+            articles = self.get_articles(USER_INFORMATION.get('topics', []))
+            self.speak(f'What {len(articles)}')
+            best_matched_article = get_best_matching_title(articles, msg.data['utterance'])
+            html_document = self.getHTMLdocument(best_matched_article[1].link)
 
-        # create soap object
-        soup = BeautifulSoup(html_document, 'html.parser')
-        paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
-        # Read only 4 lines and then ask for if they want more?
-        repeat = math.ceil(len(paragraphs)/4)
-        print('Lines', len(paragraphs))
-        # print("Repeats", repeat)
-        total_lines = len(paragraphs)
+            # create soap object
+            soup = BeautifulSoup(html_document, 'html.parser')
+            paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
+            # Read only 4 lines and then ask for if they want more?
+            repeat = math.ceil(len(paragraphs)/4)
+            print('Lines', len(paragraphs))
+            # print("Repeats", repeat)
+            total_lines = len(paragraphs)
         lines = 0
 
         while lines < total_lines:
