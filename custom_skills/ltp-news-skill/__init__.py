@@ -221,6 +221,16 @@ class RssNewsSkill(MycroftSkill):
             self.speak(articles[i].published)
             wait_while_speaking()
 
+    @intent_file_handler('ReadOutUserTopics.intent')
+    def read_topics_users_is_subscribed_to(self, msg=None):
+        topics = USER_INFORMATION['topics']
+        if (len(topics) > 0):
+            self.speak('Here are the subscribed topics:')
+            for topic in topics:
+                self.speak(f'{topic}')
+        else:
+            self.speak('You are not subscribed to any topics')
+
     @intent_file_handler('ReadArticleInDetail.intent')
     def read_article_in_detail(self, msg=None):
         # TODO: Get article number or name from feed list
