@@ -385,6 +385,7 @@ class ReminderSkill(MycroftSkill):
     @skill_api_method
     def get_next_reminder(self, msg=None, reminder_type=None):
         """ Get the first upcoming reminder. """
+        reminders = []
         if len(self.settings.get('reminders', [])) > 0:
             if reminder_type is not None:
                 reminders = [r for r in self.settings['reminders']
