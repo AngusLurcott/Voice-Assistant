@@ -151,7 +151,7 @@ class RssNewsSkill(MycroftSkill):
                 self.speak("Something went wrong when unsubscribing")
                 wait_while_speaking()
         else:
-            self.speak(f"You are already not subscribed to this topic")
+            self.speak(f"You are not subscribed to this topic")
             wait_while_speaking()
 
     @intent_file_handler('SubscribeToNewsTopic.intent')
@@ -182,9 +182,18 @@ class RssNewsSkill(MycroftSkill):
                     self.speak('The topic you said is not avaliable')
                     wait_while_speaking()
             except:
-                self.speak('No topic found')
-                print("I didn't find any topic in the utterance so I will ask you now")
-                # TODO: add in logic to show all available user topics
+                user_topics = USER_INFORMATION['topics']
+                if len(user_topics) > 0:
+                    self.speak('Here are the topics you can unsubscribe from')
+                    for topic in user_topics:
+                        self.speak(f'{topic}')
+                    self.speak('Tell me the topic you want news about')
+                    wait_while_speaking()
+                    response = self.get_response()
+                    msg.data['topic'] = response
+                    self.unsubscribe_from_topic(msg)
+                else:
+                    self.speak('You are not subscribed to any tpoics')
 
     def choose_topic(self):
         keys = self.say_feed_list()
@@ -204,8 +213,6 @@ class RssNewsSkill(MycroftSkill):
                 self.speak("Something went wrong")
             repeat += 1
         chosen_feed = RSS_FEEDS[response]
-        print(f"Feed Chosen: {chosen_feed}")
-        print("")
         return chosen_feed
 
     def filter_articles_by_published(self, articles):
@@ -266,14 +273,12 @@ class RssNewsSkill(MycroftSkill):
             paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
             # Read only 4 lines and then ask for if they want more?
             repeat = math.ceil(len(paragraphs)/4)
-            print('Lines', len(paragraphs))
             # print("Repeats", repeat)
             total_lines = len(paragraphs)
         lines = 0
 
         while lines < total_lines:
             print("Reading from line: ", lines, " of ", total_lines)
-            print()
             temp_max = lines + 4
             # Ternary operator to calculate the maximum lines to read in this loop
             max_lines = total_lines if (temp_max > total_lines) else temp_max
@@ -282,6 +287,8 @@ class RssNewsSkill(MycroftSkill):
                 self.speak(paragraph.text)
                 wait_while_speaking()
             if(max_lines == total_lines):
+                self.speak('I have finished reading the article')
+                wait_while_speaking()
                 break
             if(max_lines < total_lines):
                 print()
@@ -290,6 +297,7 @@ class RssNewsSkill(MycroftSkill):
                     lines += 4
                     continue
                 else:
+                    self.speak('Ok.')
                     break
 
     @intent_file_handler('GiveUserNews.intent')
@@ -311,7 +319,6 @@ class RssNewsSkill(MycroftSkill):
                         articles = self.get_articles(topics=[topic])
                         self.speak_articles_list(articles)
                     else:
-                        print('You are not currently subscribed to this topic')
                         self.speak('Would you like to get updates for this topic?')
                         wait_while_speaking()
                         response = self.get_response()
@@ -320,6 +327,7 @@ class RssNewsSkill(MycroftSkill):
                             articles = self.get_articles(topics=[topic])
                             self.speak_articles_list(articles)
                         else:
+                            self.speak('Ok.')
                             pass
                 else:
                     self.speak('The topic you said is not avaliable')
