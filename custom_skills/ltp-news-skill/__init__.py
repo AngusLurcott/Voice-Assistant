@@ -69,13 +69,7 @@ def get_best_matching_title(articles, utterance):
         # words = get_interesting_words(title)
         words = res.split()
         item_rating_list.append((calc_rating(words, utterance), article))
-    print('What is going on')
-    for item in item_rating_list:
-        print(item[0], item[1].title)
     item_rating_list.sort(key=lambda x: x[0], reverse=False)
-    print('What is goin on 2')
-    for item in item_rating_list:
-        print(item[0], item[1].title)
     return item_rating_list[-1]
 
 
@@ -84,7 +78,6 @@ def calc_rating(words, utterance):
     rating = 0
     for w in words:
         if w.lower() in utterance.lower():
-            print(f'similar words found: {w}, {utterance}')
             rating += 1
     return rating
 
@@ -178,7 +171,6 @@ class RssNewsSkill(MycroftSkill):
                 # add_topic_to_user(topic)
             except:
                 # self.speak('No topic found')
-                print("I didn't find any topic in the utterance so I will ask you now")
                 topic = self.choose_topic()
                 self.add_topic_into_user_infomation(topic)
                 # add_topic_to_user(topic)
@@ -287,7 +279,6 @@ class RssNewsSkill(MycroftSkill):
                 wait_while_speaking()
                 break
             if(max_lines < total_lines):
-                print()
                 response = self.ask_yesno(prompt="Do you want to continue?")
                 if (response == 'yes'):
                     lines += 4
@@ -316,7 +307,6 @@ class RssNewsSkill(MycroftSkill):
                 paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
                 # Read only 4 lines and then ask for if they want more?
                 repeat = math.ceil(len(paragraphs)/4)
-                # print("Repeats", repeat)
                 total_lines = len(paragraphs)
                 self.readlines(total_lines, paragraphs)
             else:
