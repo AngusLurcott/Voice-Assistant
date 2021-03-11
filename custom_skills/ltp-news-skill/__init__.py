@@ -21,7 +21,7 @@ from mycroft.util.time import now_local
 from mycroft.util.format import nice_time, nice_date
 from mycroft.util.log import LOG
 from mycroft.util import play_wav
-from mycroft.audio import wait_while_speaking
+from mycroft.audio import wait_while_speaking, stop_speaking
 from mycroft.messagebus.client import MessageBusClient
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
@@ -65,10 +65,18 @@ def get_best_matching_title(articles, utterance):
     item_rating_list = []
     for article in articles:
         title = article.title
+        res = re.sub(r'[^\w\s]', '', title)
         # words = get_interesting_words(title)
-        words = title.split(' ')
+        words = res.split()
         item_rating_list.append((calc_rating(words, utterance), article))
-    return sorted(item_rating_list)[-1]
+    print('What is going on')
+    for item in item_rating_list:
+        print(item[0], item[1].title)
+    item_rating_list.sort(key=lambda x: x[0], reverse=False)
+    print('What is goin on 2')
+    for item in item_rating_list:
+        print(item[0], item[1].title)
+    return item_rating_list[-1]
 
 
 def calc_rating(words, utterance):
@@ -76,6 +84,7 @@ def calc_rating(words, utterance):
     rating = 0
     for w in words:
         if w.lower() in utterance.lower():
+            print(f'similar words found: {w}, {utterance}')
             rating += 1
     return rating
 
@@ -111,17 +120,18 @@ class RssNewsSkill(MycroftSkill):
             wait_while_speaking()
 
     def check_if_topic_is_valid(self, topic):
-        return (topic in self.get_feed_list())
+        return (topic.lower() in self.get_feed_list().lower())
 
     def check_if_user_has_topic(self, topic):
         if USER_INFORMATION['topics'] is not None and len(USER_INFORMATION['topics']) > 0:
-            if (topic in USER_INFORMATION['topics']):
+            if (topic.lower() in USER_INFORMATION['topics'].lower()):
                 return True
         # self.speak('You currently are not subscribed to any news')
         # wait_while_speaking()
         return False
 
     def add_topic_into_user_infomation(self, topic):
+        topic = topic.lower().capitalize()
         if self.check_if_user_has_topic(topic):
             self.speak(f'You are already subscribed to {topic}')
             wait_while_speaking()
@@ -139,6 +149,7 @@ class RssNewsSkill(MycroftSkill):
                 wait_while_speaking()
 
     def remove_topic_from_user_information(self, topic):
+        topic = topic.lower().capitalize()
         if self.check_if_user_has_topic(topic):
             self.speak(f'Unsubscribing from {topic}')
             wait_while_speaking()
@@ -166,9 +177,10 @@ class RssNewsSkill(MycroftSkill):
                     wait_while_speaking()
                 # add_topic_to_user(topic)
             except:
-                self.speak('No topic found')
+                # self.speak('No topic found')
                 print("I didn't find any topic in the utterance so I will ask you now")
-                self.choose_topic()
+                topic = self.choose_topic()
+                self.add_topic_into_user_infomation(topic)
                 # add_topic_to_user(topic)
 
     @intent_file_handler('UnsubscribeFromNewsTopic.intent')
@@ -185,52 +197,53 @@ class RssNewsSkill(MycroftSkill):
                 user_topics = USER_INFORMATION['topics']
                 if len(user_topics) > 0:
                     self.speak('Here are the topics you can unsubscribe from')
-                    for topic in user_topics:
-                        self.speak(f'{topic}')
-                    self.speak('Tell me the topic you want news about')
-                    wait_while_speaking()
-                    response = self.get_response()
+                    response = self.ask_selection(options=user_topics.lower(), numeric=True, dialog='Tell me the topic you want to unsubscribe from')
                     msg.data['topic'] = response
                     self.unsubscribe_from_topic(msg)
                 else:
                     self.speak('You are not subscribed to any tpoics')
 
     def choose_topic(self):
-        keys = self.say_feed_list()
+        keys = self.get_feed_list()
         repeat = 0
+        response = None
         while True and repeat < 2:
-            self.speak('Tell me the topic you want news about')
+            self.speak('Here are the available topics')
             wait_while_speaking()
-            response = self.get_response()
+            response = self.ask_selection(options=keys.lower(), numeric=True, dialog='Tell me the topic you want news about')
             try:
                 response = response.lower().capitalize()
                 if (response in keys):
-                    self.speak(f"{response} added.")
                     break
                 else:
                     self.speak(f"{response} is not in the avaliable choices")
             except:
-                self.speak("Something went wrong")
+                self.speak("Could you tell me that again")
             repeat += 1
-        chosen_feed = RSS_FEEDS[response]
-        return chosen_feed
+        if repeat == 2 and response is None:
+            self.speak("Something went wrong")
+        else:
+            return response
 
     def filter_articles_by_published(self, articles):
         return sorted(articles, key=lambda i: parser.parse(i.published), reverse=True)
 
+    def stop(self):
+        stop_speaking()
+
     def get_articles(self, topics=[]):
         if len(topics) > 0:
             articles = []
+            wait_while_speaking()
             for topic in topics:
-                self.speak(f'Topic: {topic}')
-                wait_while_speaking()
                 fp = feedparser.parse(RSS_FEEDS[topic])
                 articles += fp.entries[:3]
             time.sleep(1)
             # print('list of articles', articles)
             articles = self.filter_articles_by_published(articles)
         else:
-            chosen_feed = self.choose_topic()
+            topic = self.choose_topic()
+            chosen_feed = RSS_FEEDS[topic]
             self.speak("Getting RSS feed from: ", chosen_feed)
             wait_while_speaking()
             fp = feedparser.parse(chosen_feed)
@@ -245,8 +258,8 @@ class RssNewsSkill(MycroftSkill):
             wait_while_speaking()
             self.speak(articles[i].title)
             wait_while_speaking()
-            self.speak(articles[i].published)
-            wait_while_speaking()
+            # self.speak(articles[i].published)
+            # wait_while_speaking()
 
     @intent_file_handler('ReadOutUserTopics.intent')
     def read_topics_users_is_subscribed_to(self, msg=None):
@@ -258,27 +271,10 @@ class RssNewsSkill(MycroftSkill):
         else:
             self.speak('You are not subscribed to any topics')
 
-    @intent_file_handler('ReadArticleInDetail.intent')
-    def read_article_in_detail(self, msg=None):
-        # TODO: Get article number or name from feed list
-        # Currently need to get the url from the article
-        if ('utterance' in msg.data):
-            articles = self.get_articles(USER_INFORMATION.get('topics', []))
-            self.speak(f'What {len(articles)}')
-            best_matched_article = get_best_matching_title(articles, msg.data['utterance'])
-            html_document = self.getHTMLdocument(best_matched_article[1].link)
-
-            # create soap object
-            soup = BeautifulSoup(html_document, 'html.parser')
-            paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
-            # Read only 4 lines and then ask for if they want more?
-            repeat = math.ceil(len(paragraphs)/4)
-            # print("Repeats", repeat)
-            total_lines = len(paragraphs)
+    def readlines(self, total_lines, paragraphs):
         lines = 0
-
         while lines < total_lines:
-            print("Reading from line: ", lines, " of ", total_lines)
+            # print("Reading from line: ", lines, " of ", total_lines)
             temp_max = lines + 4
             # Ternary operator to calculate the maximum lines to read in this loop
             max_lines = total_lines if (temp_max > total_lines) else temp_max
@@ -296,18 +292,46 @@ class RssNewsSkill(MycroftSkill):
                 if (response == 'yes'):
                     lines += 4
                     continue
-                else:
-                    self.speak('Ok.')
+                elif (response == 'no'):
+                    self.speak('I will stop')
+                    wait_while_speaking()
                     break
+                else:
+                    break
+
+    @intent_file_handler('ReadArticleInDetail.intent')
+    def read_article_in_detail(self, msg=None):
+        # TODO: Get article number or name from feed list
+        # Currently need to get the url from the article
+        if ('utterance' in msg.data):
+            user_topics = USER_INFORMATION.get('topics', [])
+            if (len(user_topics) > 0):
+                articles = self.get_articles(user_topics)
+                best_matched_article = get_best_matching_title(articles, msg.data['article_name'])
+                self.speak(f'Reading Article {best_matched_article[1].title}')
+                html_document = self.getHTMLdocument(best_matched_article[1].link)
+
+                # create soap object
+                soup = BeautifulSoup(html_document, 'html.parser')
+                paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
+                # Read only 4 lines and then ask for if they want more?
+                repeat = math.ceil(len(paragraphs)/4)
+                # print("Repeats", repeat)
+                total_lines = len(paragraphs)
+                self.readlines(total_lines, paragraphs)
+            else:
+                self.speak('Please subscribe to a topic to read articles in more detail')
 
     @intent_file_handler('GiveUserNews.intent')
     def give_user_news(self, msg=None):
-        print('Some user information', USER_INFORMATION['topics'])
-        if(USER_INFORMATION['topics'] is not None and len(USER_INFORMATION['topics']) > 0):
-            articles = self.get_articles(USER_INFORMATION['topics'])
+        user_topics = USER_INFORMATION['topics']
+        if(user_topics is not None and len(user_topics) > 0):
+            self.speak(f'Getting articles from {", ".join(user_topics)}')
+            wait_while_speaking()
+            articles = self.get_articles(user_topics)
             self.speak_articles_list(articles)
         else:
-            self.speak('There are no topics')
+            self.speak('You are not subscribed to any topics to give news.')
 
     @intent_file_handler('GiveNewsByTopic.intent')
     def give_news_by_topic(self, msg=None):
@@ -316,14 +340,20 @@ class RssNewsSkill(MycroftSkill):
                 topic = msg.data['topic']
                 if self.check_if_topic_is_valid(topic):
                     if self.check_if_user_has_topic(topic):
+                        self.speak(f'Getting articles from {topic}')
+                        wait_while_speaking()
                         articles = self.get_articles(topics=[topic])
                         self.speak_articles_list(articles)
                     else:
+                        self.speak(f'You are not subscribed to {topic}')
+                        wait_while_speaking()
                         self.speak('Would you like to get updates for this topic?')
                         wait_while_speaking()
                         response = self.get_response()
                         if (response == 'yes'):
                             self.add_topic_into_user_infomation(topic)
+                            self.speak(f'Getting articles from {topic}')
+                            wait_while_speaking()
                             articles = self.get_articles(topics=[topic])
                             self.speak_articles_list(articles)
                         else:
