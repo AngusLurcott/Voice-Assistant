@@ -144,17 +144,19 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
     # Adds the fetched JSON List into the reminders list
     def sync_remote_events_to_device(self):
-        for event in FETCHED_EVENTS:
-            # Get reminder name and date from json
-            reminder = event.get('event_name')
-            dt = parse(event.get('event_date'))
+        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        events = self.db.child("events/{}".format(user_id)).get().val()
+        values = list(events.values())
+        values = sorted(values, key=lambda k: k['time'], reverse=True)
+        for event in values:
+            dt = parse(event.get('time'))
+            reminder = event.get('name')
             if(dt > now_local()):
                 serialized = serialize(dt)
                 print("Adding Reminders", reminder)
 
                 reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
                 reminder_skill.append_new_reminder(reminder, serialized, 'calender-event')
-                # reminder_skill.append_new_reminder(reminder, serialized, 'other')
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')
