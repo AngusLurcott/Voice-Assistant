@@ -242,14 +242,14 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     @skill_api_method
-    def append_new_reminder(self, reminder, serialized, reminder_type='default'):
+    def append_new_reminder(self, reminder, serialized, reminder_type='default', id=None):
         if 'reminders' in self.settings:
             print("Adding New Reminder to Existing Reminders List")
-            self.settings['reminders'].append({'name': reminder, 'date': serialized, 'type': reminder_type})
+            self.settings['reminders'].append({'name': reminder, 'date': serialized, 'type': reminder_type, 'id': id})
             # self.settings['reminders'].append((reminder, serialized))
         else:
             print("Adding New Reminder List")
-            self.settings['reminders'] = [{'name': reminder, 'date': serialized, 'type': reminder_type}]
+            self.settings['reminders'] = [{'name': reminder, 'date': serialized, 'type': reminder_type, 'id': id}]
             # self.settings['reminders'] = [(reminder, serialized)]
         return True
 
