@@ -112,6 +112,9 @@ class CalanderEventFirebaseSkill(MycroftSkill):
         # Initialising the Database Connection to Firebase
         self.db = firebase.initialize_firebase_connection()
 
+        self.schedule_repeating_event(self.sync_remote_events_to_device, datetime.now(),
+                                      120, name='calendar')
+
     def add_notification(self, identifier, note, expiry):
         self.notes[identifier] = (note, expiry)
 
@@ -144,23 +147,26 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
     # Adds the fetched JSON List into the reminders list
     def sync_remote_events_to_device(self):
+        print('Syncing Events From Firebase')
         user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         events = self.db.child("events/{}".format(user_id)).get()
-        values = sorted(values, key=lambda k: k['time'], reverse=True)
+        # values = sorted(events, key=lambda k: k['time'], reverse=True)
         for event in events.each():
-            if self.check_if_reminder_already_on_device(user.key()):
-                dt = parse(event.get('time'))
-                reminder = event.get('name')
-                self.check_if_reminder_already_on_device()
+            if not (self.check_if_reminder_already_on_device(event.key())):
+                event_val = event.val()
+                dt = parse(event_val.get('time'))
+                reminder = event_val.get('name')
+                print(f'Check reminder: {reminder}')
+                print(f'dt: {dt}')
                 if(dt > now_local()):
                     serialized = serialize(dt)
-                    print("Adding Reminders", reminder)
-
+                    print("Adding Reminder", reminder)
                     reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
-                    reminder_skill.append_new_reminder(reminder, serialized, 'calender-event', id=user.key())   
+                    reminder_skill.append_new_reminder(reminder, serialized, 'calender-event', id=event.key())
 
     def check_if_reminder_already_on_device(self, reminder):
-        existing_reminder = [n for n in self.reminders if n['id'] is not None and n['id'] == reminder]
+        reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+        existing_reminder = [n for n in reminder_skill.get_all_reminders() if n['id'] is not None and n['id'] == reminder]
         return len(existing_reminder) > 0
 
     # Intent to connect to firebase and update the system reminder list
