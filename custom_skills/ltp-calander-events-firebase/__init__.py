@@ -147,27 +147,35 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
     # Adds the fetched JSON List into the reminders list
     def sync_remote_events_to_device(self):
+        reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
         print('Syncing Events From Firebase')
         user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         events = self.db.child("events/{}".format(user_id)).get()
         # values = sorted(events, key=lambda k: k['time'], reverse=True)
         for event in events.each():
-            if not (self.check_if_reminder_already_on_device(event.key())):
-                event_val = event.val()
-                dt = parse(event_val.get('time'))
-                reminder = event_val.get('name')
+            event_val = event.val()
+            dt = parse(event_val.get('time'))
+            reminder = event_val.get('name')
+            existing_reminder = self.check_if_reminder_already_on_device(event.key())
+            if existing_reminder is not None:
+                if(existing_reminder['name'] != reminder or existing_reminder['date'] != dt):
+                    serialized = serialize(dt)
+                    reminder_skill.update_reminder(id, reminder, serialized, existing_reminder['type'])
+            else:
                 print(f'Check reminder: {reminder}')
                 print(f'dt: {dt}')
                 if(dt > now_local()):
                     serialized = serialize(dt)
                     print("Adding Reminder", reminder)
-                    reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
                     reminder_skill.append_new_reminder(reminder, serialized, 'calender-event', id=event.key())
 
     def check_if_reminder_already_on_device(self, reminder):
         reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
         existing_reminder = [n for n in reminder_skill.get_all_reminders() if n['id'] is not None and n['id'] == reminder]
-        return len(existing_reminder) > 0
+        if len(existing_reminder) > 0:
+            return existing_reminder[0]
+        else:
+            return None
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')

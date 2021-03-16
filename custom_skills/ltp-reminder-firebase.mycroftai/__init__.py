@@ -187,6 +187,21 @@ class ReminderSkill(MycroftSkill):
         self.settings['reminders'].remove(r)
         return True  # Matching reminder was found and removed
 
+    def remove_by_id(self, id):
+        for r in self.settings.get('reminders', []):
+            if r['id'] == id:
+                break
+        else:
+            return False  # No matching reminders found
+        self.settings['reminders'].remove(r)
+        return True  # Matching reminder was found and removed
+
+    def update_reminder(self, id, name, serialized_date, reminder_type):
+        self.remove_by_id(id)
+        dt = deserialize(serialized_date)
+        if (dt > now_local()):
+            self.append_new_reminder(name, serialized_date, reminder_type, id)
+
     def reschedule_by_name(self, name, new_time):
         """ Reschedule the reminder by it's name
 
