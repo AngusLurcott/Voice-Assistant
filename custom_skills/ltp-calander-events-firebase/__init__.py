@@ -34,37 +34,6 @@ import base64
 
 from mycroft.skills.api import SkillApi
 
-# # Dummy JSON list of Events that would be fetched from the DB
-FETCHED_EVENTS = [
-    {
-        "event_name": "Event 1",
-        "event_date": "2021-02-25 02:52:15+00:00"
-    },
-    {
-        "event_name": "Doctor's Appointment",
-        "event_date": "2021-02-26 14:02:00+00:00"
-    },
-    {
-        "event_name": "Something Else on Calander",
-        "event_date": "2021-02-26 17:00:15+00:00"
-    },
-    {
-        "event_name": "A Different thing on Calander",
-        "event_date": "2021-02-27 17:00:15+00:00"
-    }
-]
-
-# FETCHED_EVENTS = [
-#     {
-#         "event_name": "Goal 1 - Do Something",
-#         "event_date": "2021-02-27 10:57:15+00:00"
-#     },
-#     {
-#         "event_name": "Goal 2 - Do Something Else",
-#         "event_date": "2021-02-28 14:02:00+00:00"
-#     }
-# ]
-
 DAY_OF_WEEK = {
     "MONDAY": 0,
     "TUESDAY": 1,
@@ -156,26 +125,8 @@ class CalanderEventFirebaseSkill(MycroftSkill):
             event_val = event.val()
             dt = parse(event_val.get('time'))
             reminder = event_val.get('name')
-            existing_reminder = self.check_if_reminder_already_on_device(event.key())
-            if existing_reminder is not None:
-                if(existing_reminder['name'] != reminder or existing_reminder['date'] != dt):
-                    serialized = serialize(dt)
-                    reminder_skill.update_reminder(id, reminder, serialized, existing_reminder['type'])
-            else:
-                print(f'Check reminder: {reminder}')
-                print(f'dt: {dt}')
-                if(dt > now_local()):
-                    serialized = serialize(dt)
-                    print("Adding Reminder", reminder)
-                    reminder_skill.append_new_reminder(reminder, serialized, 'calender-event', id=event.key())
-
-    def check_if_reminder_already_on_device(self, reminder):
-        reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
-        existing_reminder = [n for n in reminder_skill.get_all_reminders() if n['id'] is not None and n['id'] == reminder]
-        if len(existing_reminder) > 0:
-            return existing_reminder[0]
-        else:
-            return None
+            serialized_date = serialize(dt)
+            reminder_skill.update_or_add_reminder(reminder, serialized_date, 'calender-event', event.key())
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')
