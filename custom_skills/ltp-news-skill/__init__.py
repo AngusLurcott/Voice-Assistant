@@ -263,32 +263,16 @@ class RssNewsSkill(MycroftSkill):
         else:
             self.speak('You are not subscribed to any topics')
 
-    def readlines(self, total_lines, paragraphs):
-        lines = 0
-        while lines < total_lines:
-            # print("Reading from line: ", lines, " of ", total_lines)
-            temp_max = lines + 4
-            # Ternary operator to calculate the maximum lines to read in this loop
-            max_lines = total_lines if (temp_max > total_lines) else temp_max
-            # print("Value of max lines ", max_lines)
-            for paragraph in paragraphs[lines:max_lines]:
-                self.speak(paragraph.text)
-                wait_while_speaking()
-            if(max_lines == total_lines):
-                self.speak('I have finished reading the article')
-                wait_while_speaking()
-                break
-            if(max_lines < total_lines):
-                response = self.ask_yesno(prompt="Do you want to continue?")
-                if (response == 'yes'):
-                    lines += 4
-                    continue
-                elif (response == 'no'):
-                    self.speak('I will stop')
-                    wait_while_speaking()
-                    break
-                else:
-                    break
+    def readlines(self, paragraphs):
+        for paragraph in paragraphs:
+            self.speak(paragraph.text, wait=True)
+            response = self.ask_yesno(prompt="Do you want to continue?")
+            if (response == 'yes'):
+                continue
+            elif (response == 'no'):
+                self.speak('I will stop', wait=True)
+                return
+        self.speak('I have finished reading the article', wait=True)
 
     @intent_file_handler('ReadArticleInDetail.intent')
     def read_article_in_detail(self, msg=None):
