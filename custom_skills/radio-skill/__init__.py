@@ -14,6 +14,18 @@ from mycroft.skills.api import SkillApi
 # Import audio skill
 from mycroft.skills.audioservice import AudioService
 
+# RADIO URLS
+
+BBC_1 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575420247533&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_one.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_one.m3u8"
+
+BBC_2 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575421242234&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_two.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_two.m3u8"
+
+BBC_3 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575422526535&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_three.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_three.m3u8"
+
+BBC_4 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575415916532&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_four_extra.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_four_extra.m3u8"
+
+BBC_5 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575424224036&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_five_live.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_five_live.m3u8"
+
 # Reference https://github.com/normandmickey/skill-internet-radio
 class InternetRadioSkill(MycroftSkill):
     def __init__(self):
@@ -43,7 +55,7 @@ class InternetRadioSkill(MycroftSkill):
 
                 self.speak_dialog('Playing BBC Radio 1')
                 time.sleep(4)
-                self.audio_service.play("https://redirect.viglink.com/?format=go&jsonp=vglnk_161575420247533&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_one.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_one.m3u8")
+                self.audio_service.play(BBC_1)
 
 
             elif chosen_station == '2' or chosen_station == 'two':
@@ -53,7 +65,7 @@ class InternetRadioSkill(MycroftSkill):
 
 
 
-                self.audio_service.play("https://redirect.viglink.com/?format=go&jsonp=vglnk_161575421242234&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_two.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_two.m3u8")
+                self.audio_service.play(BBC_2)
 
             elif chosen_station == '3' or chosen_station == 'three':
 
@@ -62,7 +74,7 @@ class InternetRadioSkill(MycroftSkill):
 
 
 
-                self.audio_service.play("https://redirect.viglink.com/?format=go&jsonp=vglnk_161575422526535&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_three.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_three.m3u8")
+                self.audio_service.play(BBC_3)
 
             
             elif chosen_station == '4' or chosen_station == 'four':      
@@ -71,7 +83,7 @@ class InternetRadioSkill(MycroftSkill):
 
 
 
-                self.audio_service.play("https://redirect.viglink.com/?format=go&jsonp=vglnk_161575415916532&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_four_extra.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_four_extra.m3u8")
+                self.audio_service.play(BBC_4)
 
             elif chosen_station == '5' or chosen_station == 'five' or chosen_station == '5 live' or chosen_station == 'five live' or chosen_station == 'live':
 
@@ -80,7 +92,7 @@ class InternetRadioSkill(MycroftSkill):
 
 
 
-                self.audio_service.play("https://redirect.viglink.com/?format=go&jsonp=vglnk_161575424224036&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_five_live.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_five_live.m3u8")
+                self.audio_service.play(BBC_5)
 
             else:
                 self.speak_dialog('Sorry I did not quite catch that')
