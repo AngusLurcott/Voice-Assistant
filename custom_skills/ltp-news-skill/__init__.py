@@ -287,21 +287,21 @@ class RssNewsSkill(MycroftSkill):
                 best_matched_article = get_best_matching_title(articles, msg.data['article_name'])
                 if (article is not None and article != 'other'):
                     best_matched_article = next((x for x in articles if x.title == article), None)
-
-                    self.speak(f'Reading Article {best_matched_article[1].title}')
-                    html_document = self.getHTMLdocument(best_matched_article[1].link)
-
-                    # create soap object
-                    soup = BeautifulSoup(html_document, 'html.parser')
-                    paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
-                    # Read only 4 lines and then ask for if they want more?
-                    repeat = math.ceil(len(paragraphs)/4)
-                    total_lines = len(paragraphs)
-                    self.readlines(total_lines, paragraphs)
+                    if (best_matched_article):
+                        self._read_article_in_detail(best_matched_article)
                 else:
                     self.speak('Something went wrong when I was getting the article', wait=True)
             else:
                 self.speak('Please subscribe to a topic to read articles in more detail')
+
+    def _read_article_in_detail(self, article):
+        self.speak(f'Reading Article {article.title}')
+        html_document = self.getHTMLdocument(article.link)
+        # create soap object
+        soup = BeautifulSoup(html_document, 'html.parser')
+        paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
+        # Read only 4 lines and then ask for if they want more?
+        self.readlines(total_lines, paragraphs)
 
     @intent_file_handler('GiveUserNews.intent')
     def give_user_news(self, msg=None):
