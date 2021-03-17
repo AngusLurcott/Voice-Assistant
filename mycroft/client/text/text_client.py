@@ -1251,6 +1251,18 @@ def handle_cmd(cmd):
             screen_mode = SCR_MAIN
             set_screen_dirty()
 
+    elif "api" in cmd:
+        parts = cmd.split()
+        if len(parts) < 2:
+            return
+        skill = parts[1]
+        message = bus.wait_for_response(Message('{}.public_api'.format(skill)))
+        if message:
+            show_skill_api(skill, message.data)
+            scr.get_wch()  # blocks
+            screen_mode = SCR_MAIN
+            set_screen_dirty()
+
     # TODO: More commands
     return 0  # do nothing upon return
 
