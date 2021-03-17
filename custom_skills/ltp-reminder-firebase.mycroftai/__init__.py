@@ -200,6 +200,7 @@ class ReminderSkill(MycroftSkill):
         self.settings['reminders'].remove(r)
         return True  # Matching reminder was found and removed
 
+    @skill_api_method
     def update_reminder(self, id, name, serialized_date, reminder_type):
         self.remove_by_id(id)
         dt = deserialize(serialized_date)
@@ -272,6 +273,23 @@ class ReminderSkill(MycroftSkill):
             data = {'name': reminder, 'time': serialized_date_time, 'date': date}
             posted_id = self.db.child("events/{}".format(user_id)).push(data)
             print(f'Reminder saved: {posted_id}')
+
+    @skill_api_method
+    def update_or_add_reminder(self, reminder, serialized_date, reminder_type='default', id=None):
+        existing_reminder = [n for n in self.get_all_reminders() if n['id'] is not None and n['id'] == id]
+        existing_reminder = existing_reminder[0] if len(existing_reminder) > 0 else None
+        dt = deserialize(serialized_date)
+        if existing_reminder is not None:
+            if(existing_reminder['name'] != reminder or existing_reminder['date'] != dt):
+                # serialized = serialize(dt)
+                self.update_reminder(id, reminder, serialized_date, existing_reminder['type'])
+        else:
+            print(f'Check reminder: {reminder}')
+            print(f'dt: {dt}')
+            if(dt > now_local()):
+                # serialized = serialize(dt)
+                print("Adding Reminder", reminder)
+                self.append_new_reminder(reminder, serialized_date, reminder_type, id)
 
     @skill_api_method
     def append_new_reminder(self, reminder, serialized, reminder_type='default', id=None):
