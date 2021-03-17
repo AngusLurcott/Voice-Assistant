@@ -26,6 +26,9 @@ from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
 
 from mycroft.skills import skill_api_method
+import mycroft.skills.firebase_connection as firebase
+# Imports HTTPError for if the request made is bad or has an error
+from requests import HTTPError
 
 REMINDER_PING = join(dirname(__file__), 'twoBeep.wav')
 
@@ -92,6 +95,7 @@ class ReminderSkill(MycroftSkill):
     def initialize(self):
         # Handlers for notifications after speak
         # TODO Make this work better in test
+        self.db = firebase.initialize_firebase_connection()
         if isinstance(self.bus, MessageBusClient):
             self.bus.on('speak', self.prime)
             # self.bus.on('mycroft.skill.handler.complete', self.notify)
@@ -246,15 +250,28 @@ class ReminderSkill(MycroftSkill):
                                                 default_time=DEFAULT_TIME) or
                                (None, None))
 
-        if reminder_time.hour in self.NIGHT_HOURS:
-            self.speak_dialog('ItIsNight')
-            if not self.ask_yesno('AreYouSure') == 'yes':
-                return  # Don't add if user cancels
-
         if reminder_time:  # A datetime was extracted
-            self.__save_reminder_local(reminder, reminder_time)
+            if reminder_time.hour in self.NIGHT_HOURS:
+                self.speak_dialog('ItIsNight')
+                if not self.ask_yesno('AreYouSure') == 'yes':
+                    return  # Don't add if user cancels
+            if self.ask_yesno('Do you want to add this to your calender') == 'yes':
+                id = self.push_reminder_to_firebase(reminder, reminder_time, 'calender-event')
+                self.__save_reminder_local(reminder, reminder_time, 'calender-event')
+            else:
+                self.__save_reminder_local(reminder, reminder_time)
         else:
             self.speak_dialog('NoDateTime')
+
+    def push_reminder_to_firebase(self, reminder, reminder_time, reminder_type):
+        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        if reminder_type == 'calender-event':
+            serialized_date_time = reminder_time.strftime('%Y-%d-%mT%H:%M:%S%z')
+            date_time = reminder_time.strftime("%Y-%d-%m")
+            date = reminder_time.strftime("%Y-%d-%m")
+            data = {'name': reminder, 'time': serialized_date_time, 'date': date}
+            posted_id = self.db.child("events/{}".format(user_id)).push(data)
+            print(f'Reminder saved: {posted_id}')
 
     @skill_api_method
     def append_new_reminder(self, reminder, serialized, reminder_type='default', id=None):
@@ -268,7 +285,7 @@ class ReminderSkill(MycroftSkill):
             # self.settings['reminders'] = [(reminder, serialized)]
         return True
 
-    def __save_reminder_local(self, reminder, reminder_time):
+    def __save_reminder_local(self, reminder, reminder_time, reminder_type='default', id=None):
         """ Speak verification and store the reminder. """
         # Choose dialog depending on the date
         if is_today(reminder_time):
@@ -285,7 +302,7 @@ class ReminderSkill(MycroftSkill):
         # Store reminder
         serialized = serialize(reminder_time)
         # Normal reminders are saved as the default type in the list
-        self.append_new_reminder(reminder, serialized, 'default')
+        self.append_new_reminder(reminder, serialized, reminder_type, id)
 
     def __save_unspecified_reminder(self, reminder):
         if 'unspec' in self.settings:
