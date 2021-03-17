@@ -120,13 +120,16 @@ class CalanderEventFirebaseSkill(MycroftSkill):
         print('Syncing Events From Firebase')
         user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         events = self.db.child("events/{}".format(user_id)).get()
-        # values = sorted(events, key=lambda k: k['time'], reverse=True)
+
+        event_ids, event_contents = [], []
         for event in events.each():
+            event_ids.append(event.key())
             event_val = event.val()
             dt = parse(event_val.get('time'))
             reminder = event_val.get('name')
             serialized_date = serialize(dt)
-            reminder_skill.update_or_add_reminder(reminder, serialized_date, 'calender-event', event.key())
+            event_contents.append({'time': serialized_date, 'name': reminder})
+        reminder_skill.update_or_add_reminders(event_ids, event_contents, 'calender-event')
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')
