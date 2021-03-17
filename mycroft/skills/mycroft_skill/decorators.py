@@ -64,7 +64,10 @@ def resting_screen_handler(name):
 
 def skill_api_method(func):
     """Decorator for adding a method to the skill's public api.
+<<<<<<< HEAD
 
+=======
+>>>>>>> 307ee499e5a061ea4c35144070f69d3832eade05
     Methods with this decorator will be registered on the message bus
     and an api object can be created for interaction with the skill.
     """

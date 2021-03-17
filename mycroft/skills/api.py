@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Skill Api
+<<<<<<< HEAD
 
+=======
+>>>>>>> 307ee499e5a061ea4c35144070f69d3832eade05
 The skill api allows skills interact with eachother over the message bus
 just like interacting with any other object.
 """
@@ -21,7 +24,10 @@ from mycroft.messagebus.message import Message
 
 class SkillApi():
     """SkillApi providing a simple interface to exported methods from skills
+<<<<<<< HEAD
 
+=======
+>>>>>>> 307ee499e5a061ea4c35144070f69d3832eade05
     Methods are built from a method_dict provided when initializing the skill.
     """
     bus = None
@@ -55,7 +61,10 @@ class SkillApi():
         """Generate api object from skill id.
         Arguments:
             skill (str): skill id for target skill
+<<<<<<< HEAD
 
+=======
+>>>>>>> 307ee499e5a061ea4c35144070f69d3832eade05
         Returns:
             SkillApi
         """

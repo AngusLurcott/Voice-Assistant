@@ -42,6 +42,7 @@ from mycroft.util.process_utils import ProcessStatus, StatusCallbackMap
 
 from .api import SkillApi
 from .core import FallbackSkill
+from .api import SkillApi
 from .event_scheduler import EventScheduler
 from .intent_service import IntentService
 from .skill_manager import SkillManager
