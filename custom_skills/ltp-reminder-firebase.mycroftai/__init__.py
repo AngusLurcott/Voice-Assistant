@@ -194,11 +194,11 @@ class ReminderSkill(MycroftSkill):
     def remove_by_id(self, id):
         for r in self.settings.get('reminders', []):
             if r['id'] == id:
-                break
+                print(f"Removing reminder: {r['name']}")
+                self.settings['reminders'].remove(r)
+                return True  # Matching reminder was found and removed
         else:
             return False  # No matching reminders found
-        self.settings['reminders'].remove(r)
-        return True  # Matching reminder was found and removed
 
     @skill_api_method
     def update_reminder(self, id, name, serialized_date, reminder_type):
@@ -278,14 +278,16 @@ class ReminderSkill(MycroftSkill):
     def update_or_add_reminders(self, reminder_ids, reminders, reminder_type='default'):
         self.remove_redundant_calender_events(reminder_ids)
         for i in range(0, len(reminder_ids)):
-            existing_reminder = [n for n in self.get_all_reminders() if n['id'] is not None and n['id'] == reminder_ids[i]]
+            existing_reminder = [n for n in self.get_all_reminders() if n['id'] == reminder_ids[i]]
             existing_reminder = existing_reminder[0] if len(existing_reminder) > 0 else None
             date = reminders[i]['time']
             dt = deserialize(reminders[i]['time'])
             reminder = reminders[i]['name']
             if existing_reminder is not None:
-                if(existing_reminder['name'] != reminder or existing_reminder['date'] != dt):
+                if(existing_reminder['name'] != reminder or deserialize(existing_reminder['date']) != dt):
                     self.update_reminder(id, reminder, date, existing_reminder['type'])
+                else:
+                    print('No need to update event')
             else:
                 print(f'Check reminder: {reminder}')
                 if(dt > now_local()):
@@ -295,11 +297,11 @@ class ReminderSkill(MycroftSkill):
     def remove_redundant_calender_events(self, ids):
         existing_events = [n for n in self.get_all_reminders() if n['type'] == 'calender-event']
         for reminder in existing_events:
-            if reminder['id'] not in ids:
+            if reminder['id'] != 'None' and reminder['id'] not in ids:
                 self.remove_by_id(reminder['id'])
 
     @skill_api_method
-    def append_new_reminder(self, reminder, serialized, reminder_type='default', id=None):
+    def append_new_reminder(self, reminder, serialized, reminder_type='default', id='None'):
         if 'reminders' in self.settings:
             print("Adding New Reminder to Existing Reminders List")
             self.settings['reminders'].append({'name': reminder, 'date': serialized, 'type': reminder_type, 'id': id})
@@ -310,7 +312,7 @@ class ReminderSkill(MycroftSkill):
             # self.settings['reminders'] = [(reminder, serialized)]
         return True
 
-    def __save_reminder_local(self, reminder, reminder_time, reminder_type='default', id=None):
+    def __save_reminder_local(self, reminder, reminder_time, reminder_type='default', id='None'):
         """ Speak verification and store the reminder. """
         # Choose dialog depending on the date
         if is_today(reminder_time):
@@ -496,7 +498,10 @@ class ReminderSkill(MycroftSkill):
 
             next_reminder = sorted(reminders, key=lambda tup: tup['date'])[0]
             self.settings['reminders'].remove(next_reminder)
-            self.speak('Reminder Cancelled')
+            if(next_reminder in self.settings['reminders']):
+                self.speak('Something went wrong')
+            else:
+                self.speak('Reminder Cancelled')
         else:
             self.speak('No Upcoming Reminders to cancel')
 
