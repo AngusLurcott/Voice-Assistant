@@ -123,12 +123,15 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
         event_ids, event_contents = [], []
         for event in events.each():
-            event_ids.append(event.key())
             event_val = event.val()
-            dt = parse(event_val.get('time'))
+            if('cancelled' in event_val and (event_val['cancelled'].lower() == 'true' or event_val['cancelled'] is True)):
+                continue
+            if('time' in event_val):
+                dt = parse(event_val.get('time'))
+                event_val['time'] = serialize(dt)
             reminder = event_val.get('name')
-            serialized_date = serialize(dt)
-            event_contents.append({'time': serialized_date, 'name': reminder})
+            event_contents.append(event_val)
+            event_ids.append(event.key())
         reminder_skill.update_or_add_reminders(event_ids, event_contents, 'calender-event')
 
     # Intent to connect to firebase and update the system reminder list

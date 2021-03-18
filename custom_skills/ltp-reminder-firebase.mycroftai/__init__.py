@@ -185,11 +185,17 @@ class ReminderSkill(MycroftSkill):
     def remove_by_name(self, name):
         for r in self.settings.get('reminders', []):
             if r['name'] == name:
-                break
+                self.settings['reminders'].remove(r)
+                return r  # Matching reminder was found and removed
         else:
-            return False  # No matching reminders found
-        self.settings['reminders'].remove(r)
-        return True  # Matching reminder was found and removed
+            return None  # No matching reminders found
+
+    def get_by_name(self, name):
+        for r in self.settings.get('reminders', []):
+            if r['name'] == name:
+                return r
+        else:
+            return None
 
     def remove_by_id(self, id):
         for r in self.settings.get('reminders', []):
@@ -258,7 +264,7 @@ class ReminderSkill(MycroftSkill):
                     return  # Don't add if user cancels
             if self.ask_yesno('Do you want to add this to your calender') == 'yes':
                 id = self.push_reminder_to_firebase(reminder, reminder_time, 'calender-event')
-                self.__save_reminder_local(reminder, reminder_time, 'calender-event')
+                self.__save_reminder_local(reminder, reminder_time, 'calender-event', id)
             else:
                 self.__save_reminder_local(reminder, reminder_time)
         else:
@@ -273,6 +279,7 @@ class ReminderSkill(MycroftSkill):
             data = {'name': reminder, 'time': serialized_date_time, 'date': date}
             posted_id = self.db.child("events/{}".format(user_id)).push(data)
             print(f'Reminder saved: {posted_id}')
+            return posted_id
 
     @skill_api_method
     def update_or_add_reminders(self, reminder_ids, reminders, reminder_type='default'):
@@ -296,7 +303,7 @@ class ReminderSkill(MycroftSkill):
             #  Adding a new reminder as it doesn't currently exist
             else:
                 print(f'Check reminder: {reminder}')
-                if('cancelled' in reminder and (reminder['cancelled'] is True or reminder['cancelled'].lower() == 'true')):
+                if(reminder_type == 'calender-event' and 'cancelled' in reminder and (reminder['cancelled'] is True or reminder['cancelled'].lower() == 'true')):
                     continue
                 if(dt > now_local()):
                     print("Adding Reminder", reminder)
@@ -490,15 +497,18 @@ class ReminderSkill(MycroftSkill):
         else:
             self.speak_dialog('NoUpcoming')
 
-    def __cancel_active(self):
+    def __cancel_active(self, propagate=False):
         """ Cancel all active reminders. """
         remove_list = []
         ret = len(self.cancellable) > 0  # there were reminders to cancel
         for c in self.cancellable:
-            if self.remove_by_name(c):
-                remove_list.append(c)
+            reminder = self.remove_by_name(c)
+            if reminder:
+                remove_list.append(reminder)
         for c in remove_list:
-            self.cancellable.remove(c)
+            self.cancellable.remove(c['name'])
+            if propagate:
+                self.cancel_reminder_in_db(c)
         return ret
 
     @intent_file_handler('CancelNextReminder.intent')
@@ -524,6 +534,7 @@ class ReminderSkill(MycroftSkill):
 
     def cancel_reminder_in_db(self, reminder):
         user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        # TODO: add in routes for the other types of events: goals, essential tasks, etc
         if reminder['type'] == 'calender-event':
             # serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
             # date_time = reminder_time.strftime("%Y-%m-%d")
@@ -532,14 +543,14 @@ class ReminderSkill(MycroftSkill):
             reminder_id = reminder['id']
             del reminder['id']
             reminder['cancelled'] = True
-            posted_id = self.db.child("events/{}".format(user_id)).child(reminder_id).update(reminder)
+            posted_id = self.db.child("events/{}".format(user_id)).child(reminder_id).update({'cancelled': True})
             print(f'Reminder cancelled: {reminder_id}')
 
     @intent_file_handler('CancelActiveReminder.intent')
     def cancel_active(self, message):
         """ Cancel a reminder that's been triggered (and is repeating every
             2 minutes. """
-        if self.__cancel_active():
+        if self.__cancel_active(propagate=True):
             self.speak_dialog('ReminderCancelled')
         else:
             self.speak_dialog('NoActive')
