@@ -285,14 +285,24 @@ class ReminderSkill(MycroftSkill):
             reminder = reminders[i]['name']
             if existing_reminder is not None:
                 if(existing_reminder['name'] != reminder or deserialize(existing_reminder['date']) != dt):
+                    # print('Need to change attrs')
+                    # print(f"Current: {existing_reminder['name']}")
+                    # print(f'New Name: {reminder}')
+                    # print(f"Current DT: {dt}")
+                    # print(f"New DT: {deserialize(existing_reminder['date'])}")
                     self.update_reminder(id, reminder, date, existing_reminder['type'])
                 else:
                     print('No need to update event')
+            #  Adding a new reminder as it doesn't currently exist
             else:
                 print(f'Check reminder: {reminder}')
+                if('cancelled' in reminder and (reminder['cancelled'] is True or reminder['cancelled'].lower() == 'true')):
+                    continue
                 if(dt > now_local()):
                     print("Adding Reminder", reminder)
                     self.append_new_reminder(reminder, date, reminder_type, reminder_ids[i])
+                else:
+                    print(f'dt was not in the future: {date}')
 
     def remove_redundant_calender_events(self, ids):
         existing_events = [n for n in self.get_all_reminders() if n['type'] == 'calender-event']
@@ -496,14 +506,34 @@ class ReminderSkill(MycroftSkill):
         if len(self.settings.get('reminders', [])) > 0:
             reminders = [r for r in self.settings['reminders']]
 
-            next_reminder = sorted(reminders, key=lambda tup: tup['date'])[0]
-            self.settings['reminders'].remove(next_reminder)
-            if(next_reminder in self.settings['reminders']):
-                self.speak('Something went wrong')
+            next_reminder = sorted(reminders, key=lambda tup: tup['date'])
+            next_reminder = next_reminder[0] if next_reminder else None
+            if(next_reminder):
+                print(f'Next Reminder: {next_reminder}')
+                if(next_reminder['id'] != 'None'):
+                    self.cancel_reminder_in_db(next_reminder)
+                self.settings['reminders'].remove(next_reminder)
+                if(next_reminder in self.settings['reminders']):
+                    self.speak('Something went wrong')
+                else:
+                    self.speak('Reminder Cancelled')
             else:
-                self.speak('Reminder Cancelled')
+                self.speak('You have no upcoming reminders')
         else:
             self.speak('No Upcoming Reminders to cancel')
+
+    def cancel_reminder_in_db(self, reminder):
+        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        if reminder['type'] == 'calender-event':
+            # serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
+            # date_time = reminder_time.strftime("%Y-%m-%d")
+            # date = reminder_time.strftime("%Y-%m-%d")
+            # data = {'name': reminder, 'time': serialized_date_time, 'date': date}
+            reminder_id = reminder['id']
+            del reminder['id']
+            reminder['cancelled'] = True
+            posted_id = self.db.child("events/{}".format(user_id)).child(reminder_id).update(reminder)
+            print(f'Reminder cancelled: {reminder_id}')
 
     @intent_file_handler('CancelActiveReminder.intent')
     def cancel_active(self, message):
