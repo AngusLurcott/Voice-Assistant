@@ -145,10 +145,47 @@ class ReminderSkill(MycroftSkill):
             if now > dt:
                 play_wav(REMINDER_PING)
                 self.speak_dialog('Reminding', data={'reminder': r['name']})
-                handled_reminders.append(r)
-            if now > dt - timedelta(minutes=10):
-                self.add_notification(r['name'], r['name'], dt)
-        self.remove_handled(handled_reminders)
+                self.handle_reminder(r)
+            # if now > dt - timedelta(minutes=10):
+            #     self.add_notification(r['name'], r['name'], dt)
+        # self.remove_handled(handled_reminders)
+
+    def handle_reminder(self, reminder):
+        if reminder['type'] == 'calender-event' or reminder['type'] == 'default':
+            response = self.ask_yesno('Do you want to dismiss this reminder?')
+            if response == 'yes':
+                # code to cancel reminder
+                self.settings['reminders'].remove(reminder)
+                self.cancellable = [c for c in self.cancellable if c != reminder['name']]
+                if reminder['type'] == 'calender-event':
+                    self.cancel_reminder_in_db(reminder)
+            else:
+                if ('repeat' in reminder):
+                    repeats = reminder['repeat'] + 1
+                else:
+                    repeats = 0
+                self.settings['reminders'].remove(reminder)
+                # If the reminer hasn't been repeated 3 times reschedule it
+                if repeats < 2:
+                    self.speak('ok, I will remind you about this in 2 minutes', wait=True)
+                    # self.speak_dialog('ToCancelInstructions')
+                    new_time = deserialize(reminder['date']) + timedelta(seconds=5)
+                    self.settings['reminders'].append(
+                        {'name': reminder['name'],
+                        'date': serialize(new_time),
+                        'type': reminder['type'],
+                        'id': reminder['id'],
+                        'repeat': repeats})
+                    # TODO: propogate snooze to db
+                    # Make the reminder cancellable
+                    if reminder['name'] not in self.cancellable:
+                        self.cancellable.append(reminder['name'])
+                else:
+                    self.speak('You have reached the maximum number of snoozes', wait=True)
+                    self.speak('So I will remove this reminder', wait=True)
+                    self.cancellable = [c for c in self.cancellable if c != reminder['name']]
+                    if reminder['type'] == 'calender-event':
+                        self.cancel_reminder_in_db(reminder)
 
     def remove_handled(self, handled_reminders):
         """ The reminder is removed and rescheduled to repeat in 2 minutes.
