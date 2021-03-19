@@ -124,7 +124,8 @@ class CalanderEventFirebaseSkill(MycroftSkill):
         event_ids, event_contents = [], []
         for event in events.each():
             event_val = event.val()
-            if('cancelled' in event_val and (event_val['cancelled'].lower() == 'true' or event_val['cancelled'] is True)):
+            if('cancelled' in event_val and (event_val['cancelled'] is True)):
+                print('Cancelled Reminder so not adding')
                 continue
             if('time' in event_val):
                 dt = parse(event_val.get('time'))

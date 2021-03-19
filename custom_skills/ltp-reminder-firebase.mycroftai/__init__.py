@@ -151,11 +151,15 @@ class ReminderSkill(MycroftSkill):
         # self.remove_handled(handled_reminders)
 
     def handle_reminder(self, reminder):
+        print(f'Handling Reminder: {reminder}')
         if reminder['type'] == 'calender-event' or reminder['type'] == 'default':
+            try:
+                self.settings['reminders'].remove(reminder)
+            except ValueError:
+                pass
             response = self.ask_yesno('Do you want to dismiss this reminder?')
             if response == 'yes':
                 # code to cancel reminder
-                self.settings['reminders'].remove(reminder)
                 self.cancellable = [c for c in self.cancellable if c != reminder['name']]
                 if reminder['type'] == 'calender-event':
                     self.cancel_reminder_in_db(reminder)
@@ -164,7 +168,6 @@ class ReminderSkill(MycroftSkill):
                     repeats = reminder['repeat'] + 1
                 else:
                     repeats = 0
-                self.settings['reminders'].remove(reminder)
                 # If the reminer hasn't been repeated 3 times reschedule it
                 if repeats < 2:
                     self.speak('ok, I will remind you about this in 2 minutes', wait=True)
@@ -222,7 +225,10 @@ class ReminderSkill(MycroftSkill):
     def remove_by_name(self, name):
         for r in self.settings.get('reminders', []):
             if r['name'] == name:
-                self.settings['reminders'].remove(r)
+                try:
+                    self.settings['reminders'].remove(r)
+                except ValueError:
+                    pass
                 return r  # Matching reminder was found and removed
         else:
             return None  # No matching reminders found
@@ -238,7 +244,10 @@ class ReminderSkill(MycroftSkill):
         for r in self.settings.get('reminders', []):
             if r['id'] == id:
                 print(f"Removing reminder: {r['name']}")
-                self.settings['reminders'].remove(r)
+                try:
+                    self.settings['reminders'].remove(r)
+                except ValueError:
+                    pass
                 return True  # Matching reminder was found and removed
         else:
             return False  # No matching reminders found
@@ -265,7 +274,12 @@ class ReminderSkill(MycroftSkill):
                 break
         else:
             return False  # No matching reminders found
-        self.settings['reminders'].remove(r)
+        # Using a more thread-safe way to remove reminders from a list
+        # https://stackoverflow.com/a/9915349
+        try:
+            self.settings['reminders'].remove(r)
+        except ValueError:
+            pass
         self.settings['reminders'].append({'name': r['name'], 'date': serialized, 'type': r['type']})
         return True
 
@@ -342,6 +356,14 @@ class ReminderSkill(MycroftSkill):
                 print(f'Check reminder: {reminder}')
                 if(reminder_type == 'calender-event' and 'cancelled' in reminder and (reminder['cancelled'] is True or reminder['cancelled'].lower() == 'true')):
                     continue
+                # if('complete' in reminder):
+                #     if('snooze_time' in reminder and reminder['complete'] == False):
+                #         snooze_time = reminders[i]['snooze_time']
+                #         snooze_dt = deserialize(reminders[i]['snooze_time'])
+                #         if(snooze_dt > now_local()):
+                #             self.append_new_reminder(reminder, snooze_time, reminder_type, reminder_ids[i])
+                #         else:
+
                 if(dt > now_local()):
                     print("Adding Reminder", reminder)
                     self.append_new_reminder(reminder, date, reminder_type, reminder_ids[i])
@@ -559,7 +581,10 @@ class ReminderSkill(MycroftSkill):
                 print(f'Next Reminder: {next_reminder}')
                 if(next_reminder['id'] != 'None'):
                     self.cancel_reminder_in_db(next_reminder)
-                self.settings['reminders'].remove(next_reminder)
+                try:
+                    self.settings['reminders'].remove(next_reminder)
+                except ValueError:
+                    pass
                 if(next_reminder in self.settings['reminders']):
                     self.speak('Something went wrong')
                 else:
