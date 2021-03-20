@@ -115,33 +115,19 @@ class ReminderSkill(MycroftSkill):
     def reset(self, message):
         self.primed = False
 
-    # def notify(self, message):
-    #     time.sleep(10)
-    #     if self.name in message.data.get('name', ''):
-    #         self.primed = False
-    #         return
-
-    #     handled_reminders = []
-    #     now = now_local()
-    #     if self.primed:
-    #         for r in self.settings.get('reminders', []):
-    #             print('Checking {}'.format(r))
-    #             dt = deserialize(r['date'])
-    #             if now > dt - timedelta(minutes=10) and now < dt and \
-    #                     r['name'] not in self.cancellable:
-    #                 handled_reminders.append(r)
-    #                 self.speak_dialog('ByTheWay', data={'reminder': r['name']})
-    #                 self.cancellable.append(r['name'])
-
-    #         self.primed = False
-
     def __check_reminder(self, message):
         """ Repeating event handler. Checking if a reminder time has been
             reached and presents the reminder. """
         now = now_local()
         handled_reminders = []
         for r in self.settings.get('reminders', []):
-            dt = deserialize(r['date'])
+            # checks for snoozed reminders, otherwise check date attr
+            if('snooze_time' in r):
+                dt = deserialize(r['snooze_time'])
+            else:
+                dt = deserialize(r['date'])
+
+            # check for if it is time to remind the user
             if now > dt:
                 play_wav(REMINDER_PING)
                 self.speak_dialog('Reminding', data={'reminder': r['name']})
@@ -172,13 +158,15 @@ class ReminderSkill(MycroftSkill):
                 if repeats < 2:
                     self.speak('ok, I will remind you about this in 2 minutes', wait=True)
                     # self.speak_dialog('ToCancelInstructions')
-                    new_time = deserialize(reminder['date']) + timedelta(seconds=5)
-                    self.settings['reminders'].append(
-                        {'name': reminder['name'],
-                        'date': serialize(new_time),
-                        'type': reminder['type'],
-                        'id': reminder['id'],
-                        'repeat': repeats})
+                    # new_time = deserialize(reminder['date']) + timedelta(seconds=5)
+                    reminder['repeat': repeats]
+                    self.snooze_reminder(reminder)
+                    # self.settings['reminders'].append(
+                    #     {'name': reminder['name'],
+                    #     'date': serialize(new_time),
+                    #     'type': reminder['type'],
+                    #     'id': reminder['id'],
+                    #     'repeat': repeats})
                     # TODO: propogate snooze to db
                     # Make the reminder cancellable
                     if reminder['name'] not in self.cancellable:
@@ -190,37 +178,20 @@ class ReminderSkill(MycroftSkill):
                     if reminder['type'] == 'calender-event':
                         self.cancel_reminder_in_db(reminder)
 
-    def remove_handled(self, handled_reminders):
-        """ The reminder is removed and rescheduled to repeat in 2 minutes.
-
-            It is also marked as "cancellable" allowing "cancel current
-            reminder" to remove it.
-
-            Repeats a maximum of 3 times.
-        """
-        for r in handled_reminders:
-            if ('repeat' in r):
-                repeats = r['repeat'] + 1
+    def snooze_reminder(self, reminder):
+        if (reminder['type'] == 'calender-event'):
+            if('snooze_time' in reminder):
+                new_time = deserialize(reminder['snooze_time']) + timedelta(seconds=5)
             else:
-                repeats = 1
-            self.settings['reminders'].remove(r)
-            # If the reminer hasn't been repeated 3 times reschedule it
-            if repeats < 2:
-                self.speak_dialog('ToCancelInstructions')
-                new_time = deserialize(r['date']) + timedelta(minutes=2)
-                self.settings['reminders'].append(
-                    {'name': r['name'],
-                    'date': serialize(new_time),
-                    'type': r['type'],
+                new_time = deserialize(reminder['date']) + timedelta(seconds=5)
+
+            self.settings['reminders'].append(
+                    {'name': reminder['name'],
+                    'date': reminder['date'],
+                    'type': reminder['type'],
+                    'id': reminder['id'],
+                    'snooze_time': serialize(new_time)
                     'repeat': repeats})
-
-                # Make the reminder cancellable
-                if r['name'] not in self.cancellable:
-                    self.cancellable.append(r['name'])
-            else:
-                # Do not schedule a repeat and remove the reminder from
-                # the list of cancellable reminders
-                self.cancellable = [c for c in self.cancellable if c != r['name']]
 
     def remove_by_name(self, name):
         for r in self.settings.get('reminders', []):
@@ -280,7 +251,12 @@ class ReminderSkill(MycroftSkill):
             self.settings['reminders'].remove(r)
         except ValueError:
             pass
-        self.settings['reminders'].append({'name': r['name'], 'date': serialized, 'type': r['type']})
+        if('repeats' in r):
+            repeats = r['repeats'] + 1
+        else:
+            repeats = 0
+
+        self.settings['reminders'].append({'name': r['name'], 'date': r['date'], 'type': r['type'], 'snooze_time': serialized, 'repeats': repeats})
         return True
 
     def date_str(self, d):
@@ -470,6 +446,8 @@ class ReminderSkill(MycroftSkill):
         for r in self.settings['reminders']:
             if deserialize(r['date']).date() == date.date():
                 break
+            if ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date()):
+                break
         else:  # Let user know that no reminders were removed
             self.speak_dialog('NoRemindersForDate', {'date': date_str})
             return
@@ -479,7 +457,7 @@ class ReminderSkill(MycroftSkill):
             if 'reminders' in self.settings:
                 self.settings['reminders'] = [
                         r for r in self.settings['reminders']
-                        if deserialize(r['date']).date() != date.date()]
+                        if deserialize(r['date']).date() != date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date())]
 
     @intent_file_handler('GetRemindersForDay.intent')
     @skill_api_method
@@ -494,14 +472,16 @@ class ReminderSkill(MycroftSkill):
         if 'reminders' in self.settings:
             if reminder_type is not None and reminder_date is not None:
                 reminders = [r for r in self.settings['reminders']
-                            if (deserialize(r['date']).date() == deserialize(reminder_date).date()) & (r['type'] == reminder_type)]
+                            if ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date() or deserialize(r['date']).date() == deserialize(reminder_date).date()) & (r['type'] == reminder_type)]
             else:
                 reminders = [r for r in self.settings['reminders']
-                            if deserialize(r['date']).date() == date.date()]
+                            if (deserialize(r['date']).date() == date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date()))]
 
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminder_type = (r['name'], deserialize(r['date']), r['type'])
+                    if('snooze_time' in r):
+                        dt = deserialize(r['snooze_time'])
                     # Do things with the reminder type to give a differnt reponse for the reminder
 
                     # TODO: Needs to say the desired day to get a better idea of the reminder
@@ -529,30 +509,37 @@ class ReminderSkill(MycroftSkill):
                 reminders = [r for r in self.settings['reminders']]
 
         if (len(reminders) > 0):
-            next_reminder = sorted(reminders, key=lambda tup: tup['date'])[0]
-            dt = deserialize(next_reminder['date'])
+            next_reminder = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze' in tup else tup['date'])
+            if next_reminder:
+                next_reminder = next_reminder[0]
+                if('snooze_time' in next_reminder):
+                    dt = deserialize(next_reminder['snooze_time'])
+                else:
+                    dt = deserialize(next_reminder['date'])
 
-            if is_today(dt):
-                self.speak_dialog('NextToday',
-                                data={'time': nice_time(dt),
-                                        'reminder': next_reminder['name']})
-            elif is_tomorrow(dt):
-                self.speak_dialog('NextTomorrow',
-                                data={'time': nice_time(dt),
-                                        'reminder': next_reminder['name']})
-            elif is_within_week(dt):
-                """ List all reminders for a day in the week. """
-                reminder_day = get_day_of_date(dt)
-                # DAY_OF_WEEK[deserialize(r['date']).weekday()]
-                self.speak_dialog('NextReminderWithinWeek',
-                                data={'time': nice_time(dt),
-                                        'date': reminder_day,
-                                        'reminder': next_reminder['name']})
+                if is_today(dt):
+                    self.speak_dialog('NextToday',
+                                    data={'time': nice_time(dt),
+                                            'reminder': next_reminder['name']})
+                elif is_tomorrow(dt):
+                    self.speak_dialog('NextTomorrow',
+                                    data={'time': nice_time(dt),
+                                            'reminder': next_reminder['name']})
+                elif is_within_week(dt):
+                    """ List all reminders for a day in the week. """
+                    reminder_day = get_day_of_date(dt)
+                    # DAY_OF_WEEK[deserialize(r['date']).weekday()]
+                    self.speak_dialog('NextReminderWithinWeek',
+                                    data={'time': nice_time(dt),
+                                            'date': reminder_day,
+                                            'reminder': next_reminder['name']})
+                else:
+                    self.speak_dialog('NextOtherDate',
+                                    data={'time': nice_time(dt),
+                                            'date': nice_date(dt),
+                                            'reminder': next_reminder['name']})
             else:
-                self.speak_dialog('NextOtherDate',
-                                data={'time': nice_time(dt),
-                                        'date': nice_date(dt),
-                                        'reminder': next_reminder['name']})
+                self.speak_dialog('NoUpcoming')
         else:
             self.speak_dialog('NoUpcoming')
 
@@ -575,7 +562,7 @@ class ReminderSkill(MycroftSkill):
         if len(self.settings.get('reminders', [])) > 0:
             reminders = [r for r in self.settings['reminders']]
 
-            next_reminder = sorted(reminders, key=lambda tup: tup['date'])
+            next_reminder = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze' in tup else tup['date'])
             next_reminder = next_reminder[0] if next_reminder else None
             if(next_reminder):
                 print(f'Next Reminder: {next_reminder}')
@@ -637,15 +624,17 @@ class ReminderSkill(MycroftSkill):
         if 'reminders' in self.settings:
             if reminder_type is not None:
                 reminders = [r for r in self.settings['reminders']
-                            if deserialize(r['date']).date() <= nextWeek.date() and r['type'] == reminder_type]
+                            if (deserialize(r['date']).date() <= nextWeek.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() <= nextWeek.date())) and r['type'] == reminder_type]
             else:
                 reminders = [r for r in self.settings['reminders']
-                            if deserialize(r['date']).date() <= nextWeek.date()]
-            reminders = sorted(reminders, key=lambda tup: tup['date'])
+                            if deserialize(r['date']).date() <= nextWeek.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() <= nextWeek.date())]
+            reminders = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze' in tup else tup['date'])
             temp_day = None
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminder_type = (r['name'], deserialize(r['date']), r['type'])
+                    if('snooze_time' in next_reminder):
+                        dt = deserialize(next_reminder['snooze_time'])
                     # self.speak(reminder + ' at ' + nice_time(dt))
                     if is_today(dt):
                         self.speak_dialog('NextToday',
@@ -699,13 +688,15 @@ class ReminderSkill(MycroftSkill):
         if 'reminders' in self.settings:
             if reminder_type is not None:
                 reminders = [r for r in self.settings['reminders']
-                            if deserialize(r['date']).date() == max_date.date() and r['type'] == reminder_type]
+                            if (deserialize(r['date']).date() == max_date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date())) and r['type'] == reminder_type]
             else:
                 reminders = [r for r in self.settings['reminders']
-                            if deserialize(r['date']).date() == max_date.date()]
+                            if (deserialize(r['date']).date() == max_date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date()))]
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminder_type = (r['name'], deserialize(r['date']), r['type'])
+                    if('snooze_time' in next_reminder):
+                        dt = deserialize(next_reminder['snooze_time'])
                     self.speak(reminder + ' at ' + nice_time(dt) + ' this ' + get_day_of_date(max_date).lower())
                 return
         self.speak_dialog('NoUpcoming')
