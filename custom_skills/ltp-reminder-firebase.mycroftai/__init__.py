@@ -357,7 +357,8 @@ class ReminderSkill(MycroftSkill):
         login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
         user_id = login_skill.get_user_ID()
         # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
-        if(user_id):
+        if(user_id != ""):
+            self.log.info(f'Pushing reminder to db for user: {user_id}')
             if reminder_type == 'calender-event':
                 serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
                 date_time = reminder_time.strftime("%Y-%m-%d")
@@ -639,7 +640,8 @@ class ReminderSkill(MycroftSkill):
         login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
         user_id = login_skill.get_user_ID()
         # TODO: add in routes for the other types of events: goals, essential tasks, etc
-        if(user_id):
+        if(user_id != ""):
+            self.log.info(f'Cancelling reminder from db for user: {user_id}')
             if reminder['type'] == 'calender-event':
                 # serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
                 # date_time = reminder_time.strftime("%Y-%m-%d")

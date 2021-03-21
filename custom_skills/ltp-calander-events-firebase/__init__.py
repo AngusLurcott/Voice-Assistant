@@ -136,23 +136,27 @@ class CalanderEventFirebaseSkill(MycroftSkill):
         login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
         user_id = login_skill.get_user_ID()
         # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
-        if(user_id):
+        if(user_id != ""):
+            self.log.info(f'Getting calender events for user: {user_id}')
             events = self.db.child("events/{}".format(user_id)).get()
 
             event_ids, event_contents = [], []
-            for event in events.each():
-                event_val = event.val()
-                if('cancelled' in event_val and (event_val['cancelled'] is True)):
-                    print('Cancelled Reminder so not adding')
-                    continue
-                if('time' in event_val):
-                    dt = parse(event_val.get('time'))
-                    event_val['time'] = serialize(dt)
-                reminder = event_val.get('name')
-                event_contents.append(event_val)
-                event_ids.append(event.key())
-            reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
-            reminder_skill.update_or_add_reminders(event_ids, event_contents, 'calender-event')
+            try:
+                for event in events.each():
+                    event_val = event.val()
+                    if('cancelled' in event_val and (event_val['cancelled'] is True)):
+                        print('Cancelled Reminder so not adding')
+                        continue
+                    if('time' in event_val):
+                        dt = parse(event_val.get('time'))
+                        event_val['time'] = serialize(dt)
+                    reminder = event_val.get('name')
+                    event_contents.append(event_val)
+                    event_ids.append(event.key())
+                reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+                reminder_skill.update_or_add_reminders(event_ids, event_contents, 'calender-event')
+            except:
+                self.log.info(f'There are no user events for this user {user_id}')
         else:
             self.log.info("User is not logged in, couldn't get a User id")
 
