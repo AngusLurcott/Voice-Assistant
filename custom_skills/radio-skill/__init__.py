@@ -1,4 +1,4 @@
-
+# Reference https://github.com/normandmickey/skill-internet-radio
 import time
 import vlc
 import requests
@@ -11,88 +11,90 @@ from mycroft.audio import wait_while_speaking
 from mycroft.skills.core import MycroftSkill, intent_handler, skill_api_method
 #api skill get skill
 from mycroft.skills.api import SkillApi
-# Import audio skill
-from mycroft.skills.audioservice import AudioService
+# Import mp3 skill
+from mycroft.util import play_mp3
 
-# RADIO URLS
+#Station URLS
+CLASSIC = 'http://icecast.thisisdax.com/ClassicFMMP3.m3u'
+HEART = 'http://icecast.thisisdax.com/HeartUKMP3.m3u'
+SMOOTH = 'http://icecast.thisisdax.com/SmoothUKMP3.m3u'
+CAPITAL = 'http://icecast.thisisdax.com/CapitalUKMP3.m3u'
+LBC = 'http://icecast.thisisdax.com/LBCUKMP3Low.m3u'
 
-BBC_1 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575420247533&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_one.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_one.m3u8"
 
-BBC_2 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575421242234&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_two.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_two.m3u8"
-
-BBC_3 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575422526535&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_three.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_three.m3u8"
-
-BBC_4 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575415916532&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_four_extra.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_four_extra.m3u8"
-
-BBC_5 = "https://redirect.viglink.com/?format=go&jsonp=vglnk_161575424224036&key=8ace3fc8b4830d32ead5520650c6ce6e&libId=km9k2eff01000ad7000DLu95eo64a3cwo&loc=https%3A%2F%2Fwww.hifiwigwam.com%2Fforum%2Ftopic%2F127134-high-quality-320kbps-streams-for-all-bbc-radio-stations%2F&v=1&out=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_five_live.m3u8&title=High%20Quality%20320kbps%20streams%20for%20all%20BBC%20radio%20stations%20-%202%20Channel%20-%20HiFi%20WigWam&txt=http%3A%2F%2Fa.files.bbci.co.uk%2Fmedia%2Flive%2Fmanifesto%2Faudio%2Fsimulcast%2Fhls%2Fuk%2Fsbr_high%2Fak%2Fbbc_radio_five_live.m3u8"
-
-# Reference https://github.com/normandmickey/skill-internet-radio
 class InternetRadioSkill(MycroftSkill):
     def __init__(self):
         super(InternetRadioSkill, self).__init__(name="InternetRadioSkill")
-        self.audioservice = None
         self.process = None
 
-
-    def initialize(self):
-        self.audio_service = AudioService(self.bus)
-
+        # Selection options for radio
+        self.options = ['classic', 'heart', 'smooth', 'capital', 'lbc']
+    
 
     @intent_file_handler('radio.intent')
     def handle_radio(self, message):
-        self.stop() #Stop incase radio is currently playing
 
-        self.speak_dialog('What BBC radio station would you like to play? One, two, three, four, or five live')
+        self.stop()
 
-        time.sleep(10)
-
-
+        self.speak_dialog('Which station would you like to play?')
+        selection = self.ask_selection(self.options, numeric=True).lower()
 
         try:
-            chosen_station = self.get_response().lower()
-
-            if chosen_station == '1' or chosen_station == 'one':
-
-                self.speak_dialog('Playing BBC Radio 1')
-                time.sleep(4)
-                self.audio_service.play(BBC_1)
-
-
-            elif chosen_station == '2' or chosen_station == 'two':
-
-                self.speak_dialog('Playing BBC Radio 2')
-                time.sleep(4)
-
-
-
-                self.audio_service.play(BBC_2)
-
-            elif chosen_station == '3' or chosen_station == 'three':
-
-                self.speak_dialog('Playing BBC Radio 3')
-                time.sleep(4)
-
-
-
-                self.audio_service.play(BBC_3)
-
             
-            elif chosen_station == '4' or chosen_station == 'four':      
-                self.speak_dialog('Playing BBC Radio 4')
+
+            if selection == self.options[0]:
+
+                self.speak_dialog('Playing Classic FM')
                 time.sleep(4)
 
+                if CLASSIC[-3:] == 'm3u':
+                    self.process = play_mp3(CLASSIC[:-4])
+                else:
+                    self.process = play_mp3(CLASSIC)
 
 
-                self.audio_service.play(BBC_4)
-
-            elif chosen_station == '5' or chosen_station == 'five' or chosen_station == '5 live' or chosen_station == 'five live' or chosen_station == 'live':
-
-                self.speak_dialog('Playing BBC Radio 5 Live')
+            elif selection == self.options[1]:
+                
+                self.speak_dialog('Playing Heart FM')
                 time.sleep(4)
 
+                if HEART[-3:] == 'm3u':
+                    self.process = play_mp3(HEART[:-4])
+                else:
+                    self.process = play_mp3(HEART)
 
 
-                self.audio_service.play(BBC_5)
+            elif selection == self.options[2]:
+
+                self.speak_dialog('Playing Smooth Radio')
+                time.sleep(4)
+
+                if SMOOTH[-3:] == 'm3u':
+                    self.process = play_mp3(SMOOTH[:-4])
+                else:
+                    self.process = play_mp3(SMOOTH)
+            
+            elif selection == self.options[3]:
+ 
+                self.speak_dialog('Playing Capital Radio')
+                time.sleep(4)
+
+                if CAPITAL[-3:] == 'm3u':
+                    self.process = play_mp3(CAPITAL[:-4])
+                else:
+                    self.process = play_mp3(CAPITAL)
+
+            elif selection == self.options[4]:
+
+
+                self.speak_dialog('Playing LBC')
+
+                time.sleep(4)
+                if LBC[-3:] == 'm3u':
+                    self.process = play_mp3(LBC[:-4])
+                else:
+                    self.process = play_mp3(LBC)
+
 
             else:
                 self.speak_dialog('Sorry I did not quite catch that')
@@ -101,14 +103,20 @@ class InternetRadioSkill(MycroftSkill):
         except:
             self.speak_dialog('Please try again')
 
-
     @intent_file_handler('stopradio.intent')
     def handle_stop(self, message):
+
         self.stop()
         self.speak_dialog('Stopping.the.radio')
 
+
+
     def stop(self):
-           self.audio_service.stop()
+        if self.process is not None:
+            self.process.terminate()
+            self.process.wait()
+
+
 
 def create_skill():
     return InternetRadioSkill()
