@@ -30,7 +30,7 @@ class InternetRadioSkill(MycroftSkill):
         # Selection options for radio
         self.options = ['classic', 'heart', 'smooth', 'capital', 'lbc']
     
-
+    @skill_api_method
     @intent_file_handler('radio.intent')
     def handle_radio(self, message):
 
