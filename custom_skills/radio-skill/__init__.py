@@ -32,7 +32,7 @@ class InternetRadioSkill(MycroftSkill):
     
     @skill_api_method
     @intent_file_handler('radio.intent')
-    def handle_radio(self, message):
+    def handle_radio(self):
 
         self.stop()
 
