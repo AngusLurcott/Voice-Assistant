@@ -23,9 +23,7 @@ from mycroft.util.format import nice_time, nice_date
 from mycroft.util.log import LOG
 from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
-# from mycroft.skills import skill_api_method
-# Import the firebase util file for firebase connection
-import mycroft.skills.firebase_connection as firebase
+from mycroft.skills import skill_api_method
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
 # Imports parse to parse any JSON dates within the fetched results
@@ -34,36 +32,12 @@ import base64
 
 from mycroft.skills.api import SkillApi
 
-# # Dummy JSON list of Events that would be fetched from the DB
-FETCHED_EVENTS = [
-    {
-        "event_name": "Event 1",
-        "event_date": "2021-02-25 02:52:15+00:00"
-    },
-    {
-        "event_name": "Doctor's Appointment",
-        "event_date": "2021-02-26 14:02:00+00:00"
-    },
-    {
-        "event_name": "Something Else on Calander",
-        "event_date": "2021-02-26 17:00:15+00:00"
-    },
-    {
-        "event_name": "A Different thing on Calander",
-        "event_date": "2021-02-27 17:00:15+00:00"
-    }
-]
-
-# FETCHED_EVENTS = [
-#     {
-#         "event_name": "Goal 1 - Do Something",
-#         "event_date": "2021-02-27 10:57:15+00:00"
-#     },
-#     {
-#         "event_name": "Goal 2 - Do Something Else",
-#         "event_date": "2021-02-28 14:02:00+00:00"
-#     }
-# ]
+FIREBASE_CONFIG = {
+"apiKey": "AIzaSyByc48kOPrTgMOH7y5TLzXbQ3veZ-mlaqw",
+"authDomain": "cardiff-smart-speaker-project.firebaseapp.com",
+"storageBucket": "cardiff-smart-speaker-project.appspot.com",
+"databaseURL": "https://cardiff-smart-speaker-project-default-rtdb.firebaseio.com"
+}
 
 DAY_OF_WEEK = {
     "MONDAY": 0,
@@ -110,7 +84,17 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
     def initialize(self):
         # Initialising the Database Connection to Firebase
-        self.db = firebase.initialize_firebase_connection()
+        self.initialize_firebase_connection()
+
+        self.schedule_repeating_event(self.sync_remote_events_to_device, datetime.now(),
+                                      120, name='calendar')
+
+    def initialize_firebase_connection(self):
+        # global userId
+        firebase = pyrebase.initialize_app(FIREBASE_CONFIG)
+        auth = firebase.auth()
+        self.db = firebase.database()
+        # self.login()
 
     def add_notification(self, identifier, note, expiry):
         self.notes[identifier] = (note, expiry)
@@ -122,6 +106,10 @@ class CalanderEventFirebaseSkill(MycroftSkill):
     def reset(self, message):
         self.primed = False
 
+    '''If the skill api method is used, make sure to use
+    SimpleNamespace to create an object as the msg
+    arg takes in an object that requires a msg.data attr'''
+    @skill_api_method
     @intent_file_handler('GetRemindersForDay.intent')
     def get_calender_events_for_day(self, msg=None):
         """ List all reminders for the specified date. """
@@ -144,17 +132,29 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
     # Adds the fetched JSON List into the reminders list
     def sync_remote_events_to_device(self):
-        for event in FETCHED_EVENTS:
-            # Get reminder name and date from json
-            reminder = event.get('event_name')
-            dt = parse(event.get('event_date'))
-            if(dt > now_local()):
-                serialized = serialize(dt)
-                print("Adding Reminders", reminder)
+        print('Syncing Events From Firebase')
+        login_skill = SkillApi('testmotionskillcardiff.c1631548')
+        user_id = login_skill.get_user_ID()
+        # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        if(user_id):
+            events = self.db.child("events/{}".format(user_id)).get()
 
-                reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
-                reminder_skill.append_new_reminder(reminder, serialized, 'calender-event')
-                # reminder_skill.append_new_reminder(reminder, serialized, 'other')
+            event_ids, event_contents = [], []
+            for event in events.each():
+                event_val = event.val()
+                if('cancelled' in event_val and (event_val['cancelled'] is True)):
+                    print('Cancelled Reminder so not adding')
+                    continue
+                if('time' in event_val):
+                    dt = parse(event_val.get('time'))
+                    event_val['time'] = serialize(dt)
+                reminder = event_val.get('name')
+                event_contents.append(event_val)
+                event_ids.append(event.key())
+            reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+            reminder_skill.update_or_add_reminders(event_ids, event_contents, 'calender-event')
+        else:
+            self.log.info("User is not logged in, couldn't get a User id")
 
     # Intent to connect to firebase and update the system reminder list
     @intent_file_handler('ConnectToFirebase.intent')
