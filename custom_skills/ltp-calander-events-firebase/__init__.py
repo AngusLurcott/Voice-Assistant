@@ -23,7 +23,7 @@ from mycroft.util.format import nice_time, nice_date
 from mycroft.util.log import LOG
 from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
-# from mycroft.skills import skill_api_method
+from mycroft.skills import skill_api_method
 # Import the firebase util file for firebase connection
 import mycroft.skills.firebase_connection as firebase
 # Imports HTTPError for if the request made is bad or has an error
@@ -94,6 +94,10 @@ class CalanderEventFirebaseSkill(MycroftSkill):
     def reset(self, message):
         self.primed = False
 
+    '''If the skill api method is used, make sure to use
+    SimpleNamespace to create an object as the msg
+    arg takes in an object that requires a msg.data attr'''
+    @skill_api_method
     @intent_file_handler('GetRemindersForDay.intent')
     def get_calender_events_for_day(self, msg=None):
         """ List all reminders for the specified date. """

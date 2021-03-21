@@ -28,7 +28,7 @@ from requests import HTTPError
 import base64
 
 # Import the firebase util file for firebase connection
-import mycroft.skills.firebase_connection as firebase
+# import mycroft.skills.firebase_connection as firebase
 
 # Imports for parsing the RSS feeds and scraping the articles
 import feedparser
