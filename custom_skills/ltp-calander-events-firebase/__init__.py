@@ -29,7 +29,7 @@ from requests import HTTPError
 # Imports parse to parse any JSON dates within the fetched results
 from dateutil.parser import parse
 import base64
-
+import pyrebase
 from mycroft.skills.api import SkillApi
 
 FIREBASE_CONFIG = {
@@ -133,7 +133,7 @@ class CalanderEventFirebaseSkill(MycroftSkill):
     # Adds the fetched JSON List into the reminders list
     def sync_remote_events_to_device(self):
         print('Syncing Events From Firebase')
-        login_skill = SkillApi('testmotionskillcardiff.c1631548')
+        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
         user_id = login_skill.get_user_ID()
         # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         if(user_id):
