@@ -108,6 +108,8 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
     '''If the skill api method is used, make sure to use
     SimpleNamespace to create an object as the msg
+    from types import SimpleNamespace
+    sn = SimpleNamespace(data={'date':'today'})
     arg takes in an object that requires a msg.data attr'''
     @skill_api_method
     @intent_file_handler('GetRemindersForDay.intent')
@@ -122,6 +124,12 @@ class CalanderEventFirebaseSkill(MycroftSkill):
 
             reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
             reminder_skill.get_reminders_for_day(reminder_date=serialize(date), reminder_type='calender-event')
+
+    @skill_api_method
+    def get_calender_events_for_today():
+        today = now_local()
+        reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+        reminder_skill.get_reminders_for_day(reminder_date=serialize(today), reminder_type='calender-event')
 
     @intent_file_handler('GetNextReminders.intent')
     def get_next_reminder(self, msg=None):
