@@ -132,20 +132,19 @@ class ReminderSkill(MycroftSkill):
                 play_wav(REMINDER_PING)
                 self.speak_dialog('Reminding', data={'reminder': r['name']})
                 self.handle_reminder(r)
-            # if now > dt - timedelta(minutes=10):
-            #     self.add_notification(r['name'], r['name'], dt)
-        # self.remove_handled(handled_reminders)
 
     def handle_reminder(self, reminder):
-        print(f'Handling Reminder: {reminder}')
+        self.log.info(f'Handling Reminder: {reminder}')
         if reminder['type'] == 'calender-event' or reminder['type'] == 'default':
             try:
                 self.settings['reminders'].remove(reminder)
             except ValueError:
                 pass
+
             response = self.ask_yesno('Do you want to dismiss this reminder?')
             if response == 'yes':
                 # code to cancel reminder
+                self.log.info(f'Dismissing Reminder: {reminder}')
                 self.cancellable = [c for c in self.cancellable if c != reminder['name']]
                 if reminder['type'] == 'calender-event':
                     self.cancel_reminder_in_db(reminder)
@@ -157,41 +156,42 @@ class ReminderSkill(MycroftSkill):
                 # If the reminer hasn't been repeated 3 times reschedule it
                 if repeats < 2:
                     self.speak('ok, I will remind you about this in 2 minutes', wait=True)
-                    # self.speak_dialog('ToCancelInstructions')
-                    # new_time = deserialize(reminder['date']) + timedelta(seconds=5)
-                    reminder['repeat': repeats]
+                    reminder['repeat'] = repeats
                     self.snooze_reminder(reminder)
-                    # self.settings['reminders'].append(
-                    #     {'name': reminder['name'],
-                    #     'date': serialize(new_time),
-                    #     'type': reminder['type'],
-                    #     'id': reminder['id'],
-                    #     'repeat': repeats})
-                    # TODO: propogate snooze to db
-                    # Make the reminder cancellable
                     if reminder['name'] not in self.cancellable:
                         self.cancellable.append(reminder['name'])
                 else:
                     self.speak('You have reached the maximum number of snoozes', wait=True)
                     self.speak('So I will remove this reminder', wait=True)
+                    self.log.info(f'Maximum Snooze reached for reminder: {reminder}')
                     self.cancellable = [c for c in self.cancellable if c != reminder['name']]
                     if reminder['type'] == 'calender-event':
                         self.cancel_reminder_in_db(reminder)
 
     def snooze_reminder(self, reminder):
+        if('snooze_time' in reminder):
+            new_time = deserialize(reminder['snooze_time']) + timedelta(minutes=10)
+        else:
+            new_time = deserialize(reminder['date']) + timedelta(minutes=10)
+        self.log.info(f'Reminder Snoozed {reminder}')
+        self.log.info(f'with time {serialize(new_time)}')
         if (reminder['type'] == 'calender-event'):
-            if('snooze_time' in reminder):
-                new_time = deserialize(reminder['snooze_time']) + timedelta(seconds=5)
-            else:
-                new_time = deserialize(reminder['date']) + timedelta(seconds=5)
 
             self.settings['reminders'].append(
                     {'name': reminder['name'],
                     'date': reminder['date'],
                     'type': reminder['type'],
                     'id': reminder['id'],
-                    'snooze_time': serialize(new_time)
-                    'repeat': repeats})
+                    'snooze_time': serialize(new_time),
+                    'repeat': reminder['repeat']})
+        else:
+            self.settings['reminders'].append(
+                    {'name': reminder['name'],
+                    'date': reminder['date'],
+                    'type': reminder['type'],
+                    'id': reminder['id'],
+                    'snooze_time': serialize(new_time),
+                    'repeat': reminder['repeat']})
 
     def remove_by_name(self, name):
         for r in self.settings.get('reminders', []):
@@ -211,6 +211,14 @@ class ReminderSkill(MycroftSkill):
         else:
             return None
 
+    def get_by_id(self, id):
+        self.log.info(f'Getting reminder with id: {id}')
+        for r in self.settings.get('reminders', []):
+            if r['id'] == id:
+                return r
+        else:
+            return None
+
     def remove_by_id(self, id):
         for r in self.settings.get('reminders', []):
             if r['id'] == id:
@@ -223,12 +231,47 @@ class ReminderSkill(MycroftSkill):
         else:
             return False  # No matching reminders found
 
+    def _append_new_reminder(self, reminder):
+        if 'reminders' in self.settings:
+            print("Adding New Reminder to Existing Reminders List")
+            self.settings['reminders'].append(reminder)
+            # self.settings['reminders'].append((reminder, serialized))
+        else:
+            print("Adding New Reminder List")
+            self.settings['reminders'] = [reminder]
+            # self.settings['reminders'] = [(reminder, serialized)]
+        return True
+
     @skill_api_method
     def update_reminder(self, id, name, serialized_date, reminder_type):
-        self.remove_by_id(id)
-        dt = deserialize(serialized_date)
-        if (dt > now_local()):
-            self.append_new_reminder(name, serialized_date, reminder_type, id)
+        if(reminder_type == 'calender-event'):
+            self.log.info(f'Updating reminder that is Calender-Event')
+            reminder = self.get_by_id(id)
+            self.log.info(f'Found remidner by id: {reminder}')
+            if (reminder):
+                dt = deserialize(serialized_date)
+                if(dt != deserialize(reminder['date'])):
+                    if(dt > now_local()):
+                        if('snooze_time' in reminder):
+                            self.log.info('Removing snooze on event')
+                            del reminder['snooze_time']
+                            del reminder['repeat']
+                        reminder['date'] = serialized_date
+                        self.log.info('Calendar event has a new date')
+                    else:
+                        self.remove_by_id(reminder['id'])
+                        return
+                if(reminder['name'] != name):
+                    self.log.info('Calendar event has a new name')
+                    reminder['name'] = name
+                self.remove_by_id(reminder['id'])
+                self.log.info(f'Saving updated reminder {reminder}')
+                self._append_new_reminder(reminder)
+        else:
+            dt = deserialize(serialized_date)
+            self.remove_by_id(id)
+            if (dt > now_local()):
+                self.append_new_reminder(name, serialized_date, reminder_type, id)
 
     def reschedule_by_name(self, name, new_time):
         """ Reschedule the reminder by it's name
@@ -251,12 +294,12 @@ class ReminderSkill(MycroftSkill):
             self.settings['reminders'].remove(r)
         except ValueError:
             pass
-        if('repeats' in r):
-            repeats = r['repeats'] + 1
+        if('repeat' in r):
+            repeats = r['repeat'] + 1
         else:
             repeats = 0
 
-        self.settings['reminders'].append({'name': r['name'], 'date': r['date'], 'type': r['type'], 'snooze_time': serialized, 'repeats': repeats})
+        self.settings['reminders'].append({'name': r['name'], 'date': r['date'], 'type': r['type'], 'snooze_time': serialized, 'repeat': repeats})
         return True
 
     def date_str(self, d):
@@ -310,21 +353,20 @@ class ReminderSkill(MycroftSkill):
 
     @skill_api_method
     def update_or_add_reminders(self, reminder_ids, reminders, reminder_type='default'):
-        self.remove_redundant_calender_events(reminder_ids)
+        self.remove_redundant_reminders(reminder_ids, 'calender-event')
         for i in range(0, len(reminder_ids)):
             existing_reminder = [n for n in self.get_all_reminders() if n['id'] == reminder_ids[i]]
             existing_reminder = existing_reminder[0] if len(existing_reminder) > 0 else None
+
             date = reminders[i]['time']
             dt = deserialize(reminders[i]['time'])
             reminder = reminders[i]['name']
+
             if existing_reminder is not None:
                 if(existing_reminder['name'] != reminder or deserialize(existing_reminder['date']) != dt):
-                    # print('Need to change attrs')
-                    # print(f"Current: {existing_reminder['name']}")
-                    # print(f'New Name: {reminder}')
-                    # print(f"Current DT: {dt}")
-                    # print(f"New DT: {deserialize(existing_reminder['date'])}")
-                    self.update_reminder(id, reminder, date, existing_reminder['type'])
+                    self.log.info(f'Event needs to be updated {existing_reminder}')
+                    self.log.info(f'To new changes {reminders[i]}')
+                    self.update_reminder(existing_reminder['id'], reminder, date, existing_reminder['type'])
                 else:
                     print('No need to update event')
             #  Adding a new reminder as it doesn't currently exist
@@ -332,22 +374,14 @@ class ReminderSkill(MycroftSkill):
                 print(f'Check reminder: {reminder}')
                 if(reminder_type == 'calender-event' and 'cancelled' in reminder and (reminder['cancelled'] is True or reminder['cancelled'].lower() == 'true')):
                     continue
-                # if('complete' in reminder):
-                #     if('snooze_time' in reminder and reminder['complete'] == False):
-                #         snooze_time = reminders[i]['snooze_time']
-                #         snooze_dt = deserialize(reminders[i]['snooze_time'])
-                #         if(snooze_dt > now_local()):
-                #             self.append_new_reminder(reminder, snooze_time, reminder_type, reminder_ids[i])
-                #         else:
-
                 if(dt > now_local()):
                     print("Adding Reminder", reminder)
                     self.append_new_reminder(reminder, date, reminder_type, reminder_ids[i])
                 else:
                     print(f'dt was not in the future: {date}')
 
-    def remove_redundant_calender_events(self, ids):
-        existing_events = [n for n in self.get_all_reminders() if n['type'] == 'calender-event']
+    def remove_redundant_reminders(self, ids, reminder_type):
+        existing_events = [n for n in self.get_all_reminders() if n['type'] == reminder_type]
         for reminder in existing_events:
             if reminder['id'] != 'None' and reminder['id'] not in ids:
                 self.remove_by_id(reminder['id'])
@@ -633,8 +667,8 @@ class ReminderSkill(MycroftSkill):
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminder_type = (r['name'], deserialize(r['date']), r['type'])
-                    if('snooze_time' in next_reminder):
-                        dt = deserialize(next_reminder['snooze_time'])
+                    if('snooze_time' in r):
+                        dt = deserialize(r['snooze_time'])
                     # self.speak(reminder + ' at ' + nice_time(dt))
                     if is_today(dt):
                         self.speak_dialog('NextToday',
@@ -673,6 +707,7 @@ class ReminderSkill(MycroftSkill):
         if msg is not None:
             captured_day = msg.data['utterance'].split(' ')[-1].upper()
             desired_day = DAY_OF_WEEK[captured_day]
+            self.log.info(f'Captured desired day: {desired_day}')
             # print("This is the captured date,", captured_day);
             if(desired_day == today):
                 max_date = datetime.now()
@@ -695,8 +730,8 @@ class ReminderSkill(MycroftSkill):
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminder_type = (r['name'], deserialize(r['date']), r['type'])
-                    if('snooze_time' in next_reminder):
-                        dt = deserialize(next_reminder['snooze_time'])
+                    if('snooze_time' in r):
+                        dt = deserialize(r['snooze_time'])
                     self.speak(reminder + ' at ' + nice_time(dt) + ' this ' + get_day_of_date(max_date).lower())
                 return
         self.speak_dialog('NoUpcoming')
