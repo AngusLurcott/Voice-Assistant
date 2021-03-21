@@ -24,7 +24,7 @@ from mycroft.util.log import LOG
 from mycroft.audio import wait_while_speaking
 from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
-
+import pyrebase
 from mycroft.skills import skill_api_method
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
@@ -354,7 +354,7 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     def push_reminder_to_firebase(self, reminder, reminder_time, reminder_type):
-        login_skill = SkillApi('testmotionskillcardiff.c1631548')
+        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
         user_id = login_skill.get_user_ID()
         # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         if(user_id):
@@ -636,7 +636,7 @@ class ReminderSkill(MycroftSkill):
             self.speak('No Upcoming Reminders to cancel')
 
     def cancel_reminder_in_db(self, reminder):
-        login_skill = SkillApi('testmotionskillcardiff.c1631548')
+        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
         user_id = login_skill.get_user_ID()
         # TODO: add in routes for the other types of events: goals, essential tasks, etc
         if(user_id):
