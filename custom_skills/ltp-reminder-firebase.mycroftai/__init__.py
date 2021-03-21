@@ -26,9 +26,15 @@ from mycroft.util import play_wav
 from mycroft.messagebus.client import MessageBusClient
 
 from mycroft.skills import skill_api_method
-import mycroft.skills.firebase_connection as firebase
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
+
+FIREBASE_CONFIG = {
+"apiKey": "AIzaSyByc48kOPrTgMOH7y5TLzXbQ3veZ-mlaqw",
+"authDomain": "cardiff-smart-speaker-project.firebaseapp.com",
+"storageBucket": "cardiff-smart-speaker-project.appspot.com",
+"databaseURL": "https://cardiff-smart-speaker-project-default-rtdb.firebaseio.com"
+}
 
 REMINDER_PING = join(dirname(__file__), 'twoBeep.wav')
 
@@ -95,7 +101,7 @@ class ReminderSkill(MycroftSkill):
     def initialize(self):
         # Handlers for notifications after speak
         # TODO Make this work better in test
-        self.db = firebase.initialize_firebase_connection()
+        self.initialize_firebase_connection()
         if isinstance(self.bus, MessageBusClient):
             self.bus.on('speak', self.prime)
             # self.bus.on('mycroft.skill.handler.complete', self.notify)
@@ -104,6 +110,13 @@ class ReminderSkill(MycroftSkill):
         # Reminder checker event
         self.schedule_repeating_event(self.__check_reminder, datetime.now(),
                                       0.5 * MINUTES, name='reminder')
+
+    def initialize_firebase_connection(self):
+        # global userId
+        firebase = pyrebase.initialize_app(FIREBASE_CONFIG)
+        auth = firebase.auth()
+        self.db = firebase.database()
+        # self.login()
 
     def add_notification(self, identifier, note, expiry):
         self.notes[identifier] = (note, expiry)
@@ -341,15 +354,20 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     def push_reminder_to_firebase(self, reminder, reminder_time, reminder_type):
-        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
-        if reminder_type == 'calender-event':
-            serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
-            date_time = reminder_time.strftime("%Y-%m-%d")
-            date = reminder_time.strftime("%Y-%m-%d")
-            data = {'name': reminder, 'time': serialized_date_time, 'date': date}
-            posted_id = self.db.child("events/{}".format(user_id)).push(data)
-            print(f'Reminder saved: {posted_id}')
-            return posted_id
+        login_skill = SkillApi('testmotionskillcardiff.c1631548')
+        user_id = login_skill.get_user_ID()
+        # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        if(user_id):
+            if reminder_type == 'calender-event':
+                serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
+                date_time = reminder_time.strftime("%Y-%m-%d")
+                date = reminder_time.strftime("%Y-%m-%d")
+                data = {'name': reminder, 'time': serialized_date_time, 'date': date}
+                posted_id = self.db.child("events/{}".format(user_id)).push(data)
+                print(f'Reminder saved: {posted_id}')
+                return posted_id
+        else:
+            self.log.info("User is not logged in, couldn't get a User id")
 
     @skill_api_method
     def update_or_add_reminders(self, reminder_ids, reminders, reminder_type='default'):
@@ -618,18 +636,22 @@ class ReminderSkill(MycroftSkill):
             self.speak('No Upcoming Reminders to cancel')
 
     def cancel_reminder_in_db(self, reminder):
-        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        login_skill = SkillApi('testmotionskillcardiff.c1631548')
+        user_id = login_skill.get_user_ID()
         # TODO: add in routes for the other types of events: goals, essential tasks, etc
-        if reminder['type'] == 'calender-event':
-            # serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
-            # date_time = reminder_time.strftime("%Y-%m-%d")
-            # date = reminder_time.strftime("%Y-%m-%d")
-            # data = {'name': reminder, 'time': serialized_date_time, 'date': date}
-            reminder_id = reminder['id']
-            del reminder['id']
-            reminder['cancelled'] = True
-            posted_id = self.db.child("events/{}".format(user_id)).child(reminder_id).update({'cancelled': True})
-            print(f'Reminder cancelled: {reminder_id}')
+        if(user_id):
+            if reminder['type'] == 'calender-event':
+                # serialized_date_time = reminder_time.strftime('%Y-%m-%dT%H:%M:%S%z')
+                # date_time = reminder_time.strftime("%Y-%m-%d")
+                # date = reminder_time.strftime("%Y-%m-%d")
+                # data = {'name': reminder, 'time': serialized_date_time, 'date': date}
+                reminder_id = reminder['id']
+                del reminder['id']
+                reminder['cancelled'] = True
+                posted_id = self.db.child("events/{}".format(user_id)).child(reminder_id).update({'cancelled': True})
+                print(f'Reminder cancelled: {reminder_id}')
+        else:
+            self.log.info("User is not logged in, couldn't get a User id")
 
     @intent_file_handler('CancelActiveReminder.intent')
     def cancel_active(self, message):
