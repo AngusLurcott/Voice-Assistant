@@ -480,7 +480,7 @@ class ReminderSkill(MycroftSkill):
         for r in self.settings['reminders']:
             if deserialize(r['date']).date() == date.date():
                 break
-            if ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date()):
+            if ('snooze_time' in r and deserialize(r['snooze_time']).date() == date.date()):
                 break
         else:  # Let user know that no reminders were removed
             self.speak_dialog('NoRemindersForDate', {'date': date_str})
@@ -491,7 +491,7 @@ class ReminderSkill(MycroftSkill):
             if 'reminders' in self.settings:
                 self.settings['reminders'] = [
                         r for r in self.settings['reminders']
-                        if deserialize(r['date']).date() != date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date())]
+                        if deserialize(r['date']).date() != date.date() or ('snooze_time' in r and deserialize(r['snooze_time']).date() != date.date())]
 
     @intent_file_handler('GetRemindersForDay.intent')
     @skill_api_method
@@ -506,10 +506,12 @@ class ReminderSkill(MycroftSkill):
         if 'reminders' in self.settings:
             if reminder_type is not None and reminder_date is not None:
                 reminders = [r for r in self.settings['reminders']
-                            if ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date() or deserialize(r['date']).date() == deserialize(reminder_date).date()) & (r['type'] == reminder_type)]
+                            if (('snooze_time' in r and deserialize(r['snooze_time']).date() == deserialize(reminder_date).date()) or
+                            deserialize(r['date']).date() == deserialize(reminder_date).date()) and r['type'] == reminder_type]
             else:
                 reminders = [r for r in self.settings['reminders']
-                            if (deserialize(r['date']).date() == date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date()))]
+                            if (deserialize(r['date']).date() == date.date() or
+                            ('snooze_time' in r and deserialize(r['snooze_time']).date() == date.date()))]
 
             if len(reminders) > 0:
                 for r in reminders:
@@ -543,7 +545,7 @@ class ReminderSkill(MycroftSkill):
                 reminders = [r for r in self.settings['reminders']]
 
         if (len(reminders) > 0):
-            next_reminder = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze' in tup else tup['date'])
+            next_reminder = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze_time' in tup else tup['date'])
             if next_reminder:
                 next_reminder = next_reminder[0]
                 if('snooze_time' in next_reminder):
@@ -596,7 +598,7 @@ class ReminderSkill(MycroftSkill):
         if len(self.settings.get('reminders', [])) > 0:
             reminders = [r for r in self.settings['reminders']]
 
-            next_reminder = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze' in tup else tup['date'])
+            next_reminder = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze_time' in tup else tup['date'])
             next_reminder = next_reminder[0] if next_reminder else None
             if(next_reminder):
                 print(f'Next Reminder: {next_reminder}')
@@ -658,11 +660,14 @@ class ReminderSkill(MycroftSkill):
         if 'reminders' in self.settings:
             if reminder_type is not None:
                 reminders = [r for r in self.settings['reminders']
-                            if (deserialize(r['date']).date() <= nextWeek.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() <= nextWeek.date())) and r['type'] == reminder_type]
+                            if (deserialize(r['date']).date() <= nextWeek.date() or
+                            ('snooze_time' in r and deserialize(r['snooze_time']).date() <= nextWeek.date())) and
+                            r['type'] == reminder_type]
             else:
                 reminders = [r for r in self.settings['reminders']
-                            if deserialize(r['date']).date() <= nextWeek.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() <= nextWeek.date())]
-            reminders = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze' in tup else tup['date'])
+                            if deserialize(r['date']).date() <= nextWeek.date() or
+                            ('snooze_time' in r and deserialize(r['snooze_time']).date() <= nextWeek.date())]
+            reminders = sorted(reminders, key=lambda tup: tup['snooze_time'] if 'snooze_time' in tup else tup['date'])
             temp_day = None
             if len(reminders) > 0:
                 for r in reminders:
@@ -723,10 +728,12 @@ class ReminderSkill(MycroftSkill):
         if 'reminders' in self.settings:
             if reminder_type is not None:
                 reminders = [r for r in self.settings['reminders']
-                            if (deserialize(r['date']).date() == max_date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date())) and r['type'] == reminder_type]
+                            if (deserialize(r['date']).date() == max_date.date() or
+                            ('snooze_time' in r and deserialize(r['snooze_time']).date() == date.date())) and r['type'] == reminder_type]
             else:
                 reminders = [r for r in self.settings['reminders']
-                            if (deserialize(r['date']).date() == max_date.date() or ('snooze_time' in r & deserialize(r['snooze_time']).date() == date.date()))]
+                            if (deserialize(r['date']).date() == max_date.date() or
+                            ('snooze_time' in r and deserialize(r['snooze_time']).date() == date.date()))]
             if len(reminders) > 0:
                 for r in reminders:
                     reminder, dt, reminder_type = (r['name'], deserialize(r['date']), r['type'])
