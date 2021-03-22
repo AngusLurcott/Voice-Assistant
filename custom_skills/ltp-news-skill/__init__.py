@@ -40,8 +40,6 @@ from dateutil import parser
 import time
 import cytoolz
 
-USER_INFORMATION = {'topics': []}
-
 # Constant Dict of various RSS Feeds
 RSS_FEEDS = {
     'World': 'http://feeds.bbci.co.uk/news/uk/rss.xml',
@@ -105,19 +103,19 @@ class RssNewsSkill(MycroftSkill):
 
     def say_feed_list(self):
         keys = self.get_feed_list()
-        self.speak("Here are the avaliable Topics:")
+        self.speak("Here are the avaliable Topics:", wait=True)
         time.sleep(1)
         for i in range(0, len(keys)):
             time.sleep(0.3)
-            self.speak(f"{i + 1}. {keys[i]}")
-            wait_while_speaking()
+            self.speak(f"{i + 1}. {keys[i]}", wait=True)
 
     def check_if_topic_is_valid(self, topic):
         return (topic.lower() in self.get_feed_list().lower())
 
     def check_if_user_has_topic(self, topic):
-        if USER_INFORMATION['topics'] is not None and len(USER_INFORMATION['topics']) > 0:
-            if (topic.lower() in USER_INFORMATION['topics'].lower()):
+        user_topics = self.settings.get('topics', [])
+        if(user_topics):
+            if (topic.lower() in user_topics.lower()):
                 return True
         # self.speak('You currently are not subscribed to any news')
         # wait_while_speaking()
@@ -126,37 +124,33 @@ class RssNewsSkill(MycroftSkill):
     def add_topic_into_user_infomation(self, topic):
         topic = topic.lower().capitalize()
         if self.check_if_user_has_topic(topic):
-            self.speak(f'You are already subscribed to {topic}')
-            wait_while_speaking()
+            self.speak(f'You are already subscribed to {topic}', wait=True)
         else:
             try:
-                if "topics" in USER_INFORMATION:
-                    USER_INFORMATION['topics'].append(topic)
-
+                if "topics" in self.settings:
+                    self.settings['topics'].append(topic)
                 else:
-                    USER_INFORMATION['topics'] = [topic]
-                self.speak(f"{topic} has been added")
-                wait_while_speaking()
+                    self.settings['topics'] = [topic]
+                self.speak(f"{topic} has been added", wait=True)
             except:
-                self.speak("Something went wrong when subscribing")
-                wait_while_speaking()
+                self.speak("Something went wrong when subscribing", wait=True)
 
     def remove_topic_from_user_information(self, topic):
         topic = topic.lower().capitalize()
         if self.check_if_user_has_topic(topic):
-            self.speak(f'Unsubscribing from {topic}')
-            wait_while_speaking()
+            self.speak(f'Unsubscribing from {topic}', wait=True)
             try:
-                if "topics" in USER_INFORMATION:
-                    USER_INFORMATION['topics'].remove(topic)
+                if "topics" in self.settings:
+                    try:
+                        self.settings['topics'].remove(topic)
+                    except ValueError:
+                        pass
                 else:
-                    USER_INFORMATION['topics'] = []
+                    self.settings['topics'] = []
             except:
-                self.speak("Something went wrong when unsubscribing")
-                wait_while_speaking()
+                self.speak("Something went wrong when unsubscribing", wait=True)
         else:
-            self.speak(f"You are not subscribed to this topic")
-            wait_while_speaking()
+            self.speak(f"You are not subscribed to this topic", wait=True)
 
     @intent_file_handler('SubscribeToNewsTopic.intent')
     def subscribe_to_topic(self, msg=None):
@@ -166,8 +160,7 @@ class RssNewsSkill(MycroftSkill):
                 if self.check_if_topic_is_valid(topic):
                     self.add_topic_into_user_infomation(topic)
                 else:
-                    self.speak('The topic you said is not avaliable')
-                    wait_while_speaking()
+                    self.speak('The topic you said is not avaliable', wait=True)
                 # add_topic_to_user(topic)
             except:
                 # self.speak('No topic found')
@@ -183,37 +176,35 @@ class RssNewsSkill(MycroftSkill):
                 if self.check_if_topic_is_valid(topic):
                     self.remove_topic_from_user_information(topic)
                 else:
-                    self.speak('The topic you said is not avaliable')
-                    wait_while_speaking()
+                    self.speak('The topic you said is not avaliable', wait=True)
             except:
-                user_topics = USER_INFORMATION['topics']
+                user_topics = self.settings.get('topics', [])
                 if len(user_topics) > 0:
-                    self.speak('Here are the topics you can unsubscribe from')
+                    self.speak('Here are the topics you can unsubscribe from', wait=True)
                     response = self.ask_selection(options=user_topics.lower(), numeric=True, dialog='Tell me the topic you want to unsubscribe from')
                     msg.data['topic'] = response
                     self.unsubscribe_from_topic(msg)
                 else:
-                    self.speak('You are not subscribed to any tpoics')
+                    self.speak('You are not subscribed to any topics', wait=True)
 
     def choose_topic(self):
         keys = self.get_feed_list()
         repeat = 0
         response = None
         while True and repeat < 2:
-            self.speak('Here are the available topics')
-            wait_while_speaking()
+            self.speak('Here are the available topics', wait=True)
             response = self.ask_selection(options=keys.lower(), numeric=True, dialog='Tell me the topic you want news about')
             try:
                 response = response.lower().capitalize()
                 if (response in keys):
                     break
                 else:
-                    self.speak(f"{response} is not in the avaliable choices")
+                    self.speak(f"{response} is not in the avaliable choices", wait=True)
             except:
-                self.speak("Could you tell me that again")
+                self.speak("Could you tell me that again", wait=True)
             repeat += 1
         if repeat == 2 and response is None:
-            self.speak("Something went wrong")
+            self.speak("Something went wrong", wait=True)
         else:
             return response
 
@@ -236,8 +227,7 @@ class RssNewsSkill(MycroftSkill):
         else:
             topic = self.choose_topic()
             chosen_feed = RSS_FEEDS[topic]
-            self.speak("Getting RSS feed from: ", chosen_feed)
-            wait_while_speaking()
+            self.speak(f"Getting RSS feed from: {chosen_feed}", wait=True)
             fp = feedparser.parse(chosen_feed)
             # Currently reading the 5th and 6th articles from the rss feed list
             articles = fp.entries[:3]
@@ -246,22 +236,20 @@ class RssNewsSkill(MycroftSkill):
 
     def speak_articles_list(self, articles):
         for i in range(0, len(articles)):
-            self.speak(f"Article {i + 1}")
-            wait_while_speaking()
-            self.speak(articles[i].title)
-            wait_while_speaking()
+            self.speak(f"Article {i + 1}", wait=True)
+            self.speak(articles[i].title, wait=True)
             # self.speak(articles[i].published)
             # wait_while_speaking()
 
     @intent_file_handler('ReadOutUserTopics.intent')
     def read_topics_users_is_subscribed_to(self, msg=None):
-        topics = USER_INFORMATION['topics']
-        if (len(topics) > 0):
-            self.speak('Here are the subscribed topics:')
-            for topic in topics:
-                self.speak(f'{topic}')
+        user_topics = self.settings.get('topics', [])
+        if (len(user_topics) > 0):
+            self.speak('Here are the subscribed topics:', wait=True)
+            for topic in user_topics:
+                self.speak(f'{topic}', wait=True)
         else:
-            self.speak('You are not subscribed to any topics')
+            self.speak('You are not subscribed to any topics', wait=True)
 
     def readlines(self, total_lines, paragraphs):
         lines = 0
@@ -272,11 +260,9 @@ class RssNewsSkill(MycroftSkill):
             max_lines = total_lines if (temp_max > total_lines) else temp_max
             # print("Value of max lines ", max_lines)
             for paragraph in paragraphs[lines:max_lines]:
-                self.speak(paragraph.text)
-                wait_while_speaking()
+                self.speak(paragraph.text, wait=True)
             if(max_lines == total_lines):
-                self.speak('I have finished reading the article')
-                wait_while_speaking()
+                self.speak('I have finished reading the article', wait=True)
                 break
             if(max_lines < total_lines):
                 response = self.ask_yesno(prompt="Do you want to continue?")
@@ -284,8 +270,7 @@ class RssNewsSkill(MycroftSkill):
                     lines += 4
                     continue
                 elif (response == 'no'):
-                    self.speak('I will stop')
-                    wait_while_speaking()
+                    self.speak('I will stop', wait=True)
                     break
                 else:
                     break
@@ -295,11 +280,11 @@ class RssNewsSkill(MycroftSkill):
         # TODO: Get article number or name from feed list
         # Currently need to get the url from the article
         if ('utterance' in msg.data):
-            user_topics = USER_INFORMATION.get('topics', [])
+            user_topics = self.settings.get('topics', [])
             if (len(user_topics) > 0):
                 articles = self.get_articles(user_topics)
                 best_matched_article = get_best_matching_title(articles, msg.data['article_name'])
-                self.speak(f'Reading Article {best_matched_article[1].title}')
+                self.speak(f'Reading Article {best_matched_article[1].title}', wait=True)
                 html_document = self.getHTMLdocument(best_matched_article[1].link)
 
                 # create soap object
@@ -310,18 +295,18 @@ class RssNewsSkill(MycroftSkill):
                 total_lines = len(paragraphs)
                 self.readlines(total_lines, paragraphs)
             else:
-                self.speak('Please subscribe to a topic to read articles in more detail')
+                self.speak('Please subscribe to a topic to read articles in more detail', wait=True)
 
+    @skill_api_method
     @intent_file_handler('GiveUserNews.intent')
     def give_user_news(self, msg=None):
-        user_topics = USER_INFORMATION['topics']
-        if(user_topics is not None and len(user_topics) > 0):
-            self.speak(f'Getting articles from {", ".join(user_topics)}')
-            wait_while_speaking()
+        user_topics = self.settings.get('topics', [])
+        if(len(user_topics) > 0):
+            self.speak(f'Getting articles from {", ".join(user_topics)}', wait=True)
             articles = self.get_articles(user_topics)
             self.speak_articles_list(articles)
         else:
-            self.speak('You are not subscribed to any topics to give news.')
+            self.speak('You are not subscribed to any topics to give news.', wait=True)
 
     @intent_file_handler('GiveNewsByTopic.intent')
     def give_news_by_topic(self, msg=None):
@@ -330,30 +315,25 @@ class RssNewsSkill(MycroftSkill):
                 topic = msg.data['topic']
                 if self.check_if_topic_is_valid(topic):
                     if self.check_if_user_has_topic(topic):
-                        self.speak(f'Getting articles from {topic}')
-                        wait_while_speaking()
+                        self.speak(f'Getting articles from {topic}', wait=True)
                         articles = self.get_articles(topics=[topic])
                         self.speak_articles_list(articles)
                     else:
-                        self.speak(f'You are not subscribed to {topic}')
-                        wait_while_speaking()
-                        self.speak('Would you like to get updates for this topic?')
-                        wait_while_speaking()
+                        self.speak(f'You are not subscribed to {topic}', wait=True)
+                        self.speak('Would you like to get updates for this topic?', wait=True)
                         response = self.get_response()
                         if (response == 'yes'):
                             self.add_topic_into_user_infomation(topic)
-                            self.speak(f'Getting articles from {topic}')
-                            wait_while_speaking()
+                            self.speak(f'Getting articles from {topic}', wait=True)
                             articles = self.get_articles(topics=[topic])
                             self.speak_articles_list(articles)
                         else:
-                            self.speak('Ok.')
+                            self.speak('Ok.', wait=True)
                             pass
                 else:
-                    self.speak('The topic you said is not avaliable')
-                    wait_while_speaking()
+                    self.speak('The topic you said is not avaliable', wait=True)
             except Exception as e:
-                self.speak('I had a problem trying to get the topic you said, please try again')
+                self.speak('I had a problem trying to get the topic you said, please try again', wait=True)
 
 
 def create_skill():
