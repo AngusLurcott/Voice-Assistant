@@ -26,7 +26,7 @@ from mycroft.messagebus.client import MessageBusClient
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
 import base64
-
+from mycroft.skills import skill_api_method
 # Import the firebase util file for firebase connection
 # import mycroft.skills.firebase_connection as firebase
 
@@ -181,7 +181,8 @@ class RssNewsSkill(MycroftSkill):
                 user_topics = self.settings.get('topics', [])
                 if len(user_topics) > 0:
                     self.speak('Here are the topics you can unsubscribe from', wait=True)
-                    response = self.ask_selection(options=user_topics.lower(), numeric=True, dialog='Tell me the topic you want to unsubscribe from')
+                    user_topics = [item.lower() for item in user_topics]
+                    response = self.ask_selection(options=user_topics, numeric=True, dialog='Tell me the topic you want to unsubscribe from')
                     msg.data['topic'] = response
                     self.unsubscribe_from_topic(msg)
                 else:
@@ -193,7 +194,7 @@ class RssNewsSkill(MycroftSkill):
         response = None
         while True and repeat < 2:
             self.speak('Here are the available topics', wait=True)
-            response = self.ask_selection(options=keys.lower(), numeric=True, dialog='Tell me the topic you want news about')
+            response = self.ask_selection(options=[item.lower() for item in keys], numeric=True, dialog='Tell me the topic you want news about')
             try:
                 response = response.lower().capitalize()
                 if (response in keys):
