@@ -20,6 +20,7 @@ from mycroft.util.parse import extract_datetime, normalize
 from mycroft.util.time import now_local
 from mycroft.util.format import nice_time, nice_date
 from mycroft.messagebus.client import MessageBusClient
+from mycroft.util.format import pronounce_number
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
 # Imports parse to parse any JSON dates within the fetched results
@@ -52,7 +53,7 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
         self.db = firebase.database()
 
     # Adds the fetched JSON List into the reminders list
-    @intent_file_handler('GetEssentialTasks.intent')
+    @intent_file_handler('SyncEssentialTasks.intent')
     def sync_remote_events_to_device(self):
         self.log.info('Syncing Essential Tasks From Firebase')
         # login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
@@ -80,12 +81,21 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
                 self.update_or_add_essential_reminders(event_contents)
             except:
                 self.log.info(f'There are no essential tasks for this user {user_id}')
-            self.get_events()
         else:
             self.log.info("User is not logged in, couldn't get a User id")
 
-    def get_events(self, msg=None):
+    @intent_file_handler('GetEssentialTasks.intent')
+    def get_essential_tasks_for_today(self, msg=None):
         existing_task = [self.log.info(f'Tasks: {r}') for r in self.settings.get('essential-tasks', [])]
+        tasks = self.settings.get('essential-tasks', [])
+        if(len(tasks) > 0):
+            self.speak(f"Here are you essential tasks", wait=True)
+            for i in range(0, len(tasks)):
+                self.log.info(f'Tasks: {tasks[i]}')
+                number = pronounce_number(i + 1, self.lang)
+                self.speak(f"Task {number}, called {tasks[i]['name']}, will need to be completed {tasks[i]['numPerDay']} times today", wait=True)
+        else:
+            self.speak(f"You have no essential tasks", wait=True)
 
     def update_or_add_essential_reminders(self, event_contents, type='essential-tasks'):
         for task in event_contents:
