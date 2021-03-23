@@ -98,6 +98,7 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
             self.speak(f"You have no essential tasks", wait=True)
 
     def update_or_add_essential_reminders(self, event_contents, type='essential-tasks'):
+
         for task in event_contents:
             existing_task = [r for r in self.settings.get('essential-tasks', []) if (r['id'] == task['id'])]
             # The goal is already in the device
@@ -105,13 +106,26 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
                 existing_task = existing_task[0]
                 if(existing_task['name'] != task['name'] or existing_task['type'] != task['type'] or existing_task['numPerDay'] != task['numPerDay']):
                     self.log.info(f'Updating Existing Task Details to: {task}')
-                    self._update_essential_task(existing_task)
+                    saved_task = self._update_essential_task(existing_task)
+                    # Append to update reminder list
                 else:
                     self.log.info(f'No Update required for task: {existing_task}')
             else:  # The goal needs to be added onto the device
                 task['completed-count'] = 0
                 self.log.info(f'Adding new task into list {task}')
-                self._append_new_essential_task(task)
+                saved_task = self._append_new_essential_task(task)
+                # Append to update reminder list
+        self.add_reminders_for_remaining_tasks()
+
+    def add_reminders_for_remaining_tasks(self):
+        remaining_tasks = [r for r in self.settings.get('essential-tasks', []) if(r['completed-count'] != r['numPerDay'])]
+        remaining_tasks_ids = [r['id'] for r in remaining_tasks]
+        # Calls the reminder api to update an existing or add a reminder for any
+        # Task that is not yet complete
+        if(remaining_tasks):
+            self.log.info("There are reminders that need to be added for essential tasks")
+            reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+            reminder_skill.update_or_add_reminders(remaining_tasks_ids, remaining_tasks, 'essential-tasks')
 
     def _append_new_essential_task(self, task):
         if 'essential-tasks' in self.settings:
@@ -122,29 +136,35 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
             self.log.info("Adding New Essential Task List")
             self.settings['essential-tasks'] = [task]
             # self.settings['reminders'] = [(reminder, serialized)]
-        return True
+        return task
 
     def _update_essential_task(self, task):
+        requires_update = False
         if(existing_task['name'] != task['name']):
             existing_task['name'] = task['name']
+            requires_update = True
 
         if(existing_task['type'] != task['type']):
             existing_task['type'] = task['type']
+            requires_update = True
 
         if(existing_task['numPerDay'] != task['numPerDay']):
             self.log.info(f"The numPerDay has changed from {existing_task['numPerDay']} to {task['numPerDay']}")
-            if(task['numPerDay'] < existing_task['numPerDay']):
+            if(task['numPerDay'] < existing_task['numPerDay'] and existing_task['completed-count'] > task['numPerDay']):
                 existing_task['completed-count'] = task['numPerDay']
             existing_task['numPerDay'] = task['numPerDay']
+            requires_update = True
 
         if('hoursBetween' in task):
             if('hoursBetween' in existing_task):
                 if(existing_task['hoursBetween'] != task['hoursBetween']):
                     self.log.info(f"The hours between has changed from {existing_task['hoursBetween']} to {task['hoursBetween']}")
                     existing_task['hoursBetween'] = task['hoursBetween']
+                    requires_update = True
             else:
                 self.log.info('Adding hoursBetween value to task')
                 existing_task['hoursBetween'] = task['hoursBetween']
+                requires_update = True
 
         if('hoursBetween' in existing_task and ('hoursBetween' not in task)):
             self.log.info('Removing Hours between from task')
@@ -152,9 +172,12 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
 
         self.remove_goal_by_id(existing_task['id'])
         self._append_new_essential_task(existing_task)
+        return existing_task
 
+    @skill_api_method
     @intent_file_handler('CompleteGoal.intent')
     def completed_goal(self, msg=None, goal_name=None):
+
         if(msg):
             try:
                 task_name = msg.data.get('task_name', None)
@@ -165,32 +188,46 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
             task_name = goal_name
 
         if(task_name):
+            self.log.info(f"Completing/Incrementing Task {task_name}")
             task = [r for r in self.settings.get('essential-tasks', []) if r['name'].lower() == task_name.lower()]
             if(task):
                 task = task[0]
                 self.log.info(f"Checking Task: {task}")
                 if(task['completed-count'] == task['numPerDay']):
                     self.speak("You have already completed this task for today", wait=True)
+                    reminder_skill.remove_by_id_and_type(task['id'], 'essential-tasks')
+                    return True
 
                 elif(task['numPerDay'] - task['completed-count'] == 1):
                     self._complete_goal(task)
+                    reminder_skill = SkillApi.get('ltp-reminder-firebase.mycroftai')
+                    reminder_skill.remove_by_id_and_type(task['id'], 'essential-tasks')
+                    return True
 
                 elif(task['completed-count'] < task['numPerDay']):
                     self.speak(f"You have done {task['completed-count']} of {task['numPerDay']} for {task_name} today", wait=True)
 
-                    response = self.ask_yesno('Do you want me to complete the task for today')
+                    response = self.ask_yesno('Can you confirm that you have done this task for now')
                     if response == 'yes':
-                        self.speak('okay, I will complete the task for today', wait=True)
-                        self._complete_goal(task)
-                    elif response == 'no':
+                        self.speak('okay, I will add that you have done the task', wait=True)
+                        # self._complete_goal(task)
                         self._increment_goal_complete(task)
+                        return True
+                    elif response == 'no':
+                        # self._increment_goal_complete(task)
+                        self.log.info('I got a no from the complete goal question')
+                        self.speak('okay, I will snooze and ask you again later', wait=True)
+                        return False
                     else:
-                        self.speak(f"sorry I had trouble understanding what you said, please start from the beginning", wait=True)
+                        self.speak(f"sorry I had trouble understanding what you said", wait=True)
+                        return False
                 else:
                     self.log.info('Something went wrong when trying to complete a goal')
+                    return None
             else:
                 self.log.info('The Task does not exist')
                 self.speak(f"{task_name} is not a valid task")
+                return None
 
         else:
             # tasks = self.settings.get('essential-tasks', [])
@@ -209,6 +246,12 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
                     self.speak("I had trouble getting the task you said, can you try again", wait=True)
             else:
                 self.speak(f"You don't have any tasks to complete for today", wait=True)
+
+    def is_goal_complete(self, id):
+        task = [r for r in self.settings.get('essential-tasks', []) if(r['name'] == goal['name'] and r['id'] == goal['id'])]
+        if(task):
+            return (task['completed-count'] == task['numPerDay'])
+        return False
 
     def _complete_goal(self, goal):
         task = [r for r in self.settings.get('essential-tasks', []) if(r['name'] == goal['name'] and r['id'] == goal['id'])]
@@ -233,6 +276,7 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
             difference = task['numPerDay'] - task['completed-count']
             if(difference == 0):
                 self.log.info('The task is already complete')
+                self.speak('This task has already been completed for today', wait=True)
                 return
 
             elif(difference - 1 == 0):
@@ -261,6 +305,7 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
                 self._append_new_essential_task(r)
             else:
                 self.log.info(f"Task already at 0: {r}")
+        self.add_reminders_for_remaining_tasks()
 
     def remove_goal_by_id(self, id):
         for r in self.settings.get('essential-tasks', []):

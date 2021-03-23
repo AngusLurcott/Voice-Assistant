@@ -28,6 +28,7 @@ import pyrebase
 from mycroft.skills import skill_api_method
 # Imports HTTPError for if the request made is bad or has an error
 from requests import HTTPError
+from mycroft.skills.api import SkillApi
 
 FIREBASE_CONFIG = {
 "apiKey": "AIzaSyByc48kOPrTgMOH7y5TLzXbQ3veZ-mlaqw",
@@ -144,6 +145,12 @@ class ReminderSkill(MycroftSkill):
             if now > dt:
                 play_wav(REMINDER_PING)
                 self.speak_dialog('Reminding', data={'reminder': r['name']})
+                if(r['type'] == 'essential-tasks'):
+                    if('task-type' in r):
+                        if(r['task-type'] == 'm'):
+                            self.speak(f'It is important that you take your medicine')
+                        else:
+                            self.speak(f"This is an essential task")
                 self.handle_reminder(r)
 
     def handle_reminder(self, reminder):
@@ -166,11 +173,11 @@ class ReminderSkill(MycroftSkill):
                     repeats = reminder['repeat'] + 1
                 else:
                     repeats = 0
-                # If the reminer hasn't been repeated 3 times reschedule it
+                # If the reminfer hasn't been repeated 3 times reschedule it
                 if repeats < 2:
-                    self.speak('ok, I will remind you about this in 2 minutes', wait=True)
+                    self.speak('ok, I will remind you about this in 3 minutes', wait=True)
                     reminder['repeat'] = repeats
-                    self.snooze_reminder(reminder)
+                    self.snooze_reminder(reminder, snooze_for=3)
                     if reminder['name'] not in self.cancellable:
                         self.cancellable.append(reminder['name'])
                 else:
@@ -180,31 +187,80 @@ class ReminderSkill(MycroftSkill):
                     self.cancellable = [c for c in self.cancellable if c != reminder['name']]
                     if reminder['type'] == 'calender-event':
                         self.cancel_reminder_in_db(reminder)
-
-    def snooze_reminder(self, reminder):
-        if('snooze_time' in reminder):
-            new_time = deserialize(reminder['snooze_time']) + timedelta(minutes=10)
+        elif(reminder['type'] == 'essential-tasks'):
+            self.remove_by_id_and_type(reminder['id'], reminder['type'])
+            self.log.info(f"Handling Essential Task Reminder: {reminder['name']}")
+            task_skill = SkillApi.get('ltp-essential-task-firebase')
+            try:
+                response = task_skill.completed_goal(goal_name=reminder['name'])
+                self.log.info(f"This was the result from the completed goal method: {response}")
+                if (response is not None):
+                    if(response is True):
+                        self.log.info('The task has been incremented, now checking if a new reminder is required')
+                        task_complete = task_skill.is_goal_complete(reminder['id'])
+                        # self.remove_by_id_and_type(reminder['id'], reminder['type'])
+                        if(task_complete is not True):
+                            if('hoursBetween' in reminder):
+                                new_time = now_local() + timedelta(hours=reminder['hoursBetween'])
+                            else:
+                                new_time = now_local() + timedelta(hours=1)
+                            reminder['date'] = serialize(new_time)
+                            self._append_new_reminder(reminder)
+                else:
+                    self.log.info('Adding snooze to the essential Task')
+                    if ('repeat' in reminder):
+                        repeats = reminder['repeat'] + 1
+                    else:
+                        repeats = 0
+                    # If the reminfer hasn't been repeated 3 times reschedule it
+                    if repeats < 2:
+                        self.speak('ok, I will remind you about this in 5 minutes', wait=True)
+                        reminder['repeat'] = repeats
+                        self.snooze_reminder(reminder, snooze_for=5)
+                        if reminder['name'] not in self.cancellable:
+                            self.cancellable.append(reminder['name'])
+                    else:
+                        self.speak('You have reached the maximum number of snoozes', wait=True)
+                        self.speak('So I will remove this reminder', wait=True)
+                        self.log.info(f'Maximum Snooze reached for reminder: {reminder}')
+                        self.cancellable = [c for c in self.cancellable if c != reminder['name']]
+                    task_skill = SkillApi.get('ltp-essential-task-firebase')
+                    task_skill.add_reminders_for_remaining_tasks()
+            except:
+                self.log.info(f"The Skill api method returned a None Type")
         else:
-            new_time = deserialize(reminder['date']) + timedelta(minutes=10)
+            self.log.info(f"Something went wrong when trying to handle reminder, didn't catch valid reminder type: {reminder}")
+
+    def snooze_reminder(self, reminder, snooze_for=10):
+        if('snooze_time' in reminder):
+            new_time = deserialize(reminder['snooze_time']) + timedelta(minutes=snooze_for)
+        else:
+            new_time = deserialize(reminder['date']) + timedelta(minutes=snooze_for)
         self.log.info(f'Reminder Snoozed {reminder}')
         self.log.info(f'with time {serialize(new_time)}')
         if (reminder['type'] == 'calender-event'):
-
-            self.settings['reminders'].append(
-                    {'name': reminder['name'],
-                    'date': reminder['date'],
-                    'type': reminder['type'],
-                    'id': reminder['id'],
-                    'snooze_time': serialize(new_time),
-                    'repeat': reminder['repeat']})
+            reminder['snooze_time'] = serialize(new_time)
+            self._append_new_reminder(reminder)
+            # self.settings['reminders'].append(
+            #         {'name': reminder['name'],
+            #         'date': reminder['date'],
+            #         'type': reminder['type'],
+            #         'id': reminder['id'],
+            #         'snooze_time': serialize(new_time),
+            #         'repeat': reminder['repeat']})
+        elif(reminder['type'] == 'essential-tasks'):
+            reminder['snooze_time'] = serialize(new_time)
+            self._append_new_reminder(reminder)
         else:
-            self.settings['reminders'].append(
-                    {'name': reminder['name'],
-                    'date': reminder['date'],
-                    'type': reminder['type'],
-                    'id': reminder['id'],
-                    'snooze_time': serialize(new_time),
-                    'repeat': reminder['repeat']})
+            reminder['snooze_time'] = serialize(new_time)
+            self._append_new_reminder(reminder)
+            # self.settings['reminders'].append(
+            #         {'name': reminder['name'],
+            #         'date': reminder['date'],
+            #         'type': reminder['type'],
+            #         'id': reminder['id'],
+            #         'snooze_time': serialize(new_time),
+            #         'repeat': reminder['repeat']})
 
     def remove_by_name(self, name):
         for r in self.settings.get('reminders', []):
@@ -232,9 +288,30 @@ class ReminderSkill(MycroftSkill):
         else:
             return None
 
+    def get_by_id_and_type(self, id, reminder_type):
+        self.log.info(f'Getting reminder with id: {id} and type: {reminder_type}')
+        for r in self.settings.get('reminders', []):
+            if r['id'] == id and r['type'] == reminder_type:
+                return r
+        else:
+            return None
+
     def remove_by_id(self, id):
         for r in self.settings.get('reminders', []):
             if r['id'] == id:
+                print(f"Removing reminder: {r['name']}")
+                try:
+                    self.settings['reminders'].remove(r)
+                except ValueError:
+                    pass
+                return True  # Matching reminder was found and removed
+        else:
+            return False  # No matching reminders found
+
+    def remove_by_id_and_type(self, id, reminder_type):
+        self.log.info(f"Remove args ID: {id} and reminder_type: {reminder_type}")
+        for r in self.settings.get('reminders', []):
+            if r['id'] == id and r['type'] == reminder_type:
                 print(f"Removing reminder: {r['name']}")
                 try:
                     self.settings['reminders'].remove(r)
@@ -256,35 +333,71 @@ class ReminderSkill(MycroftSkill):
         return True
 
     @skill_api_method
-    def update_reminder(self, id, name, serialized_date, reminder_type):
+    def update_reminder(self, reminder, reminder_type):
+        reminder['id']
         if(reminder_type == 'calender-event'):
             self.log.info(f'Updating reminder that is Calender-Event')
-            reminder = self.get_by_id(id)
-            self.log.info(f'Found remidner by id: {reminder}')
-            if (reminder):
-                dt = deserialize(serialized_date)
-                if(dt != deserialize(reminder['date'])):
+            existing_existing_reminder = self.get_by_id(reminder['id'])
+            self.log.info(f'Found remidner by id: {existing_reminder}')
+            if (existing_reminder):
+                dt = deserialize(reminder['date'])
+                if(dt != deserialize(existing_reminder['date'])):
                     if(dt > now_local()):
-                        if('snooze_time' in reminder):
+                        if('snooze_time' in existing_reminder):
                             self.log.info('Removing snooze on event')
-                            del reminder['snooze_time']
-                            del reminder['repeat']
-                        reminder['date'] = serialized_date
+                            del existing_reminder['snooze_time']
+                            del existing_reminder['repeat']
+                        existing_reminder['date'] = reminder['date']
                         self.log.info('Calendar event has a new date')
                     else:
-                        self.remove_by_id(reminder['id'])
+                        self.remove_by_id(existing_reminder['id'])
                         return
-                if(reminder['name'] != name):
+                if(existing_reminder['name'] != reminder['name']):
                     self.log.info('Calendar event has a new name')
-                    reminder['name'] = name
-                self.remove_by_id(reminder['id'])
-                self.log.info(f'Saving updated reminder {reminder}')
-                self._append_new_reminder(reminder)
+                    existing_reminder['name'] = reminder['name']
+                self.remove_by_id(existing_reminder['id'])
+                self.log.info(f'Saving updated existing_reminder {existing_reminder}')
+                self._append_new_reminder(existing_reminder)
+        elif(reminder_type == 'essential-tasks'):
+            self.log.info(f'Updating existing_reminder that is Essential-Task')
+            existing_reminder = self.get_by_id_and_type(reminder['id'], reminder_type)
+            self.log.info(f'Found essential task existing_reminder by id: {existing_reminder}')
+            if (existing_reminder):
+                if(existing_reminder['name'] != reminder['name']):
+                    self.log.info('Calendar event has a new name')
+                    existing_reminder['name'] = reminder['name']
+                    requires_update = True
+                if(existing_reminder['numPerDay'] != reminder['numPerDay']):
+                    self.log.info('Calendar event has a new numPerDay')
+                    existing_reminder['numPerDay'] = reminder['numPerDay']
+                    requires_update = True
+                if(existing_reminder['task-type'] != reminder['task-type']):
+                    self.log.info('Calendar event has a new numPerDay')
+                    existing_reminder['task-type'] = reminder['task-type']
+                    requires_update = True
+                if('hoursBetween' in reminder['task-type']):
+                    if('hoursBetween' in existing_task):
+                        if(existing_task['hoursBetween'] != reminder['hoursBetween']):
+                            self.log.info(f"The hours between has changed from {existing_task['hoursBetween']} to {task['hoursBetween']}")
+                            existing_task['hoursBetween'] = reminder['hoursBetween']
+                    else:
+                        self.log.info('Adding hoursBetween value to task')
+                        existing_task['hoursBetween'] = reminder['hoursBetween']
+                    requires_update = True
+
+                if('hoursBetween' in existing_task and ('hoursBetween' not in reminder)):
+                    self.log.info('Removing Hours between from task')
+                    del existing_task['hoursBetween']
+                    requires_update = True
+                self.remove_by_id_and_type(existing_reminder['id'], reminder_type)
+                if(requires_update):
+                    self._append_new_reminder(existing_reminder)
+
         else:
-            dt = deserialize(serialized_date)
-            self.remove_by_id(id)
+            dt = deserialize(reminder['date'])
+            self.remove_by_id(reminder['id'])
             if (dt > now_local()):
-                self.append_new_reminder(name, serialized_date, reminder_type, id)
+                self.append_new_reminder(name, reminder['date'], reminder_type, reminder['id'])
 
     def reschedule_by_name(self, name, new_time):
         """ Reschedule the reminder by it's name
@@ -354,9 +467,9 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     def push_reminder_to_firebase(self, reminder, reminder_time, reminder_type):
-        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
-        user_id = login_skill.get_user_ID()
-        # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        # login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
+        # user_id = login_skill.get_user_ID()
+        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         if(user_id != ""):
             self.log.info(f'Pushing reminder to db for user: {user_id}')
             if reminder_type == 'calender-event':
@@ -372,32 +485,97 @@ class ReminderSkill(MycroftSkill):
 
     @skill_api_method
     def update_or_add_reminders(self, reminder_ids, reminders, reminder_type='default'):
-        self.remove_redundant_reminders(reminder_ids, 'calender-event')
-        for i in range(0, len(reminder_ids)):
-            existing_reminder = [n for n in self.get_all_reminders() if n['id'] == reminder_ids[i]]
-            existing_reminder = existing_reminder[0] if len(existing_reminder) > 0 else None
+        if(reminder_type == 'default' or reminder_type == 'calender-event'):
+            self.log.info(f"Updating or Adding reminders for Calender or Default")
+            self.remove_redundant_reminders(reminder_ids, 'calender-event')
+            for i in range(0, len(reminder_ids)):
+                existing_reminder = [n for n in self.get_all_reminders() if n['id'] == reminder_ids[i]]
+                existing_reminder = existing_reminder[0] if len(existing_reminder) > 0 else None
 
-            date = reminders[i]['time']
-            dt = deserialize(reminders[i]['time'])
-            reminder = reminders[i]['name']
+                date = reminders[i]['time']
+                dt = deserialize(reminders[i]['time'])
+                reminder = reminders[i]['name']
 
-            if existing_reminder is not None:
-                if(existing_reminder['name'] != reminder or deserialize(existing_reminder['date']) != dt):
-                    self.log.info(f'Event needs to be updated {existing_reminder}')
-                    self.log.info(f'To new changes {reminders[i]}')
-                    self.update_reminder(existing_reminder['id'], reminder, date, existing_reminder['type'])
+                if existing_reminder is not None:
+                    if(existing_reminder['name'] != reminder or deserialize(existing_reminder['date']) != dt):
+                        self.log.info(f'Event needs to be updated {existing_reminder}')
+                        self.log.info(f'To new changes {reminders[i]}')
+                        reminder[i]['name'] = reminder
+                        reminder[i]['date'] = date
+                        self.update_reminder(reminder, existing_reminder['type'])
+                        # self.update_reminder(existing_reminder['id'], reminder, date, existing_reminder['type'])
+                    else:
+                        print('No need to update event')
+                #  Adding a new reminder as it doesn't currently exist
                 else:
-                    print('No need to update event')
-            #  Adding a new reminder as it doesn't currently exist
+                    print(f'Check reminder: {reminder}')
+                    if(reminder_type == 'calender-event' and 'cancelled' in reminders[i] and (reminders[i]['cancelled'] is True or reminders[i]['cancelled'].lower() == 'true')):
+                        continue
+                    if(dt > now_local()):
+                        print("Adding Reminder", reminder)
+                        self.append_new_reminder(reminder, date, reminder_type, reminder_ids[i])
+                    else:
+                        print(f'dt was not in the future: {date}')
+        elif(reminder_type == 'essential-tasks'):
+            self.log.info(f"Updating or Adding reminders for Essential Tasks")
+            self.remove_redundant_reminders(reminder_ids, 'essential-tasks')
+            # Code logic to add in new reminders if they are not already here
+            # TODO:
+            buffer_reminder = 1
+            for i in range(0, len(reminder_ids)):
+                existing_reminder = [n for n in self.get_all_reminders() if n['id'] == reminder_ids[i]]
+                existing_reminder = existing_reminder[0] if len(existing_reminder) > 0 else None
+                reminder = reminders[i]
+                # date = reminders[i]['time']
+                # dt = deserialize(reminders[i]['time'])
+                # reminder = reminders[i]['name']
+                if(existing_reminder is not None):
+                    # Check if it needs to be updated
+                    self.log.info(f"Checking values against existing reminder: {existing_reminder}")
+                    if(existing_reminder['name'] != reminder['name'] or
+                        existing_reminder['task-type'] != reminder['type'] or
+                        existing_reminder['numPerDay'] != reminder['numPerDay'] or
+                        self.check_hours_between(existing_reminder, reminder)):
+
+                        self.log.info(f'Event needs to be updated {existing_reminder}')
+                        self.log.info(f'To new changes {reminders[i]}')
+                        self.update_reminder(reminder, existing_reminder['type'])
+                        # self.update_reminder(existing_reminder['id'], reminder, date, existing_reminder['type'])
+                    else:
+                        self.log.info(f"No need to update essential Task: {reminder['name']}")
+                else:
+                    self.log.info(f"Adding a new essential task reminder: {reminders[i]}")
+                    # Add a new reminder with different types
+                    if('type' in reminders[i]):
+                        reminders[i]['task-type'] = reminders[i]['type']
+                    reminders[i]['type'] = 'essential-tasks'
+                    if('hoursBetween' in reminders[i]):
+                        reminder_time = now_local() + timedelta(hours=reminders[i]['hoursBetween'])
+                    else:
+                        reminder_time = now_local() + timedelta(minutes=(buffer_reminder))
+
+                    serialized_date = serialize(reminder_time)
+                    reminders[i]['date'] = serialized_date
+                    self.log.info(f"Essential task reminder that will be created: {reminders[i]}")
+                    del reminders[i]['completed-count']
+                    self._append_new_reminder(reminders[i])
+                    buffer_reminder += 1
+        else:
+            self.log.info(f"Something went wrong when trying to update reminders of type: {reminder_type}")
+
+    def check_hours_between(self, existing_task, new_task):
+        if('hoursBetween' in new_task):
+            if('hoursBetween' in existing_task):
+                if(existing_task['hoursBetween'] != new_task['hoursBetween']):
+                    return True
+                else:
+                    return False
             else:
-                print(f'Check reminder: {reminder}')
-                if(reminder_type == 'calender-event' and 'cancelled' in reminder and (reminder['cancelled'] is True or reminder['cancelled'].lower() == 'true')):
-                    continue
-                if(dt > now_local()):
-                    print("Adding Reminder", reminder)
-                    self.append_new_reminder(reminder, date, reminder_type, reminder_ids[i])
-                else:
-                    print(f'dt was not in the future: {date}')
+                return True
+        elif('hoursBetween' in existing_task and ('hoursBetween' not in new_task)):
+            return True
+        else:
+            return False
 
     def remove_redundant_reminders(self, ids, reminder_type):
         existing_events = [n for n in self.get_all_reminders() if n['type'] == reminder_type]
@@ -637,8 +815,9 @@ class ReminderSkill(MycroftSkill):
             self.speak('No Upcoming Reminders to cancel')
 
     def cancel_reminder_in_db(self, reminder):
-        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
-        user_id = login_skill.get_user_ID()
+        # login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
+        # user_id = login_skill.get_user_ID()
+        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         # TODO: add in routes for the other types of events: goals, essential tasks, etc
         if(user_id != ""):
             self.log.info(f'Cancelling reminder from db for user: {user_id}')
@@ -774,6 +953,27 @@ class ReminderSkill(MycroftSkill):
             self.__cancel_active()
             self.settings['reminders'] = []
             self.speak_dialog('ClearedAll')
+
+    @intent_file_handler('ClearRemindersByType.intent')
+    def clear_all_reminders_by_type(self, msg=None):
+        if(msg is not None):
+            try:
+                self.log.info(f"In Try block {msg.data}")
+                response = msg.data.get('reminder_type', None)
+                self.log.info(f"Reminder Type in uttr: {response}")
+                if(response):
+                    response = "-".join(response.split(' '))
+                    self.log.info(f"Reminder Type to remove: {response}")
+                    reminders = [r['id'] for r in self.settings.get('reminders', []) if r['type'] == response]
+                    if reminders:
+                        for reminder in reminders:
+                            self.log.info(f"Removing Reminder {reminder}")
+                            self.remove_by_id_and_type(id=reminder, reminder_type=response)
+                else:
+                    self.speak("I couldn't quite catch the reminder type, can you repeat that")
+            except Exception as e:
+                self.log.info("Something went wrong when trying to clear reminders by type")
+                self.log.info(f"Error info: {e}")
 
     def stop(self, message=None):
         if self.__cancel_active():
