@@ -620,24 +620,22 @@ class ReminderSkill(MycroftSkill):
                     if('type' in reminders[i]):
                         reminders[i]['task-type'] = reminders[i]['type']
                     reminders[i]['type'] = 'essential-tasks'
+                    times = [18, 22, 32]
+                    multiplier = [1, 2, 3]
+                    random_delta = random.choice(times)
+                    random_muliplier = random.choice(multiplier)
                     if('hoursBetween' in reminders[i]):
-                        times = [18, 22, 32]
-                        multiplier = [1, 2, 3]
                         # TODO: Change back delta was hours=reminders[i]['hoursBetween']
                         if buffer_reminder > 5:
-                            random_delta = random.choice(times)
-                            random_muliplier = random.choice(multiplier)
                             reminder_time = now_local() + timedelta(minutes=random_delta * random_muliplier)
                         else:
                             reminder_time = now_local() + timedelta(minutes=20*buffer_reminder)
                     else:
                         # TODO: Change back delta was minutes=(buffer_reminder)
                         if buffer_reminder > 5:
-                            random_delta = random.choice(times)
-                            random_muliplier = random.choice(multiplier)
-                            reminder_time = now_local() + timedelta(minutes=25*buffer_reminder)
-                        else:
                             reminder_time = now_local() + timedelta(minutes=random_delta * random_muliplier)
+                        else:
+                            reminder_time = now_local() + timedelta(minutes=25*buffer_reminder)
 
                     serialized_date = serialize(reminder_time)
                     reminders[i]['date'] = serialized_date

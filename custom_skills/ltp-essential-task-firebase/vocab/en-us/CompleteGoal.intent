@@ -1,4 +1,5 @@
 complete a goal
-I have (completed|done) (a|the) goal
-I (have |)(completed|done) the {task_name} goal
+I have (completed|done) (a|the) (goal|task)
+I (have |)(completed|done) the {task_name}( goal| task|)
 complete {task_name}
+complete a task
