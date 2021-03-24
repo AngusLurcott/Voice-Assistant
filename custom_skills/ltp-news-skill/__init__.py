@@ -222,6 +222,7 @@ class RssNewsSkill(MycroftSkill):
             articles = []
             wait_while_speaking()
             for topic in topics:
+                topic = topic.lower().capitalize()
                 fp = feedparser.parse(RSS_FEEDS[topic])
                 articles += fp.entries[:3]
             time.sleep(1)
@@ -239,8 +240,7 @@ class RssNewsSkill(MycroftSkill):
 
     def speak_articles_list(self, articles):
         for i in range(0, len(articles)):
-            self.speak(f"Article {i + 1}", wait=True)
-            self.speak(articles[i].title, wait=True)
+            self.speak(f"Article {i + 1} {articles[i].title}", wait=True)
             # self.speak(articles[i].published)
             # wait_while_speaking()
 
@@ -303,10 +303,10 @@ class RssNewsSkill(MycroftSkill):
                     lines += 4
                     continue
                 elif (response == 'no'):
-                    self.speak('I will stop', wait=True)
+                    self.speak('I will stop reading this article', wait=True)
                     break
                 else:
-                    self.speak('I will stop reading', wait=True)
+                    self.speak('I will now stop reading', wait=True)
                     break
 
     @intent_file_handler('StopTheNews.intent')
@@ -329,6 +329,7 @@ class RssNewsSkill(MycroftSkill):
                 self.speak('Please subscribe to a topic to read articles in more detail', wait=True)
         elif ('utterance' in msg.data):
             if (len(user_topics) > 0):
+                self.speak('Here are your articles', wait=True)
                 articles = self.get_articles(user_topics)
                 article_headlines = [n.title for n in articles]
                 article = self.ask_selection(options=article_headlines, dialog='Which article would you like to read', numeric=True)
