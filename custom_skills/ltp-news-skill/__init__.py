@@ -110,12 +110,12 @@ class RssNewsSkill(MycroftSkill):
             self.speak(f"{i + 1}. {keys[i]}", wait=True)
 
     def check_if_topic_is_valid(self, topic):
-        return (topic.lower() in self.get_feed_list().lower())
+        return (topic.lower().capitalize() in self.get_feed_list())
 
     def check_if_user_has_topic(self, topic):
         user_topics = self.settings.get('topics', [])
         if(user_topics):
-            if (topic.lower() in user_topics.lower()):
+            if (topic.lower().capitalize() in user_topics):
                 return True
         # self.speak('You currently are not subscribed to any news')
         # wait_while_speaking()
@@ -256,7 +256,7 @@ class RssNewsSkill(MycroftSkill):
         lines = 0
         while lines < total_lines:
             # print("Reading from line: ", lines, " of ", total_lines)
-            temp_max = lines + 4
+            temp_max = lines + 2
             # Ternary operator to calculate the maximum lines to read in this loop
             max_lines = total_lines if (temp_max > total_lines) else temp_max
             # print("Value of max lines ", max_lines)
@@ -275,6 +275,10 @@ class RssNewsSkill(MycroftSkill):
                     break
                 else:
                     break
+
+    @intent_file_handler('StopTheNews.intent')
+    def stop_reading(self):
+        stop_speaking()
 
     @intent_file_handler('ReadArticleInDetail.intent')
     def read_article_in_detail(self, msg=None):
