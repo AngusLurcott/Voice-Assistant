@@ -87,7 +87,7 @@ class CalanderEventFirebaseSkill(MycroftSkill):
         self.initialize_firebase_connection()
 
         self.schedule_repeating_event(self.sync_remote_events_to_device, datetime.now(),
-                                      120, name='calendar')
+                                      1800, name='calendar')
 
     def initialize_firebase_connection(self):
         # global userId
