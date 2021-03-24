@@ -536,9 +536,9 @@ class ReminderSkill(MycroftSkill):
             self.speak_dialog('NoDateTime')
 
     def push_reminder_to_firebase(self, reminder, reminder_time, reminder_type):
-        # login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
-        # user_id = login_skill.get_user_ID()
-        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
+        user_id = login_skill.get_user_ID()
+        # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         if(user_id != ""):
             self.log.info(f'Pushing reminder to db for user: {user_id}')
             if reminder_type == 'calender-event':
@@ -906,9 +906,9 @@ class ReminderSkill(MycroftSkill):
             self.speak('No Upcoming Reminders to cancel')
 
     def cancel_reminder_in_db(self, reminder):
-        # login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
-        # user_id = login_skill.get_user_ID()
-        user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
+        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
+        user_id = login_skill.get_user_ID()
+        # user_id = 'NUYwZsdXDWMyVf76FxyLqVsFp043'
         # TODO: add in routes for the other types of events: goals, essential tasks, etc
         if(user_id != ""):
             self.log.info(f'Cancelling reminder from db for user: {user_id}')

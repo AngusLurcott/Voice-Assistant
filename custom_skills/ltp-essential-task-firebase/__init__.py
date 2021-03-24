@@ -64,10 +64,10 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
     @intent_file_handler('SyncEssentialTasks.intent')
     def sync_remote_tasks_to_device(self):
         self.log.info('Syncing Essential Tasks From Firebase')
-        # login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
-        # user_id = login_skill.get_user_ID()
+        login_skill = SkillApi.get('testmotionskillcardiff.c1631548')
+        user_id = login_skill.get_user_ID()
         # user_id = 'PxswL26vdlQQM4AqjwdeMPalNrs1'
-        user_id = 'WiXK5qBcPzLQcLF2h8ishfjAn1p1'
+        # user_id = 'WiXK5qBcPzLQcLF2h8ishfjAn1p1'
         if(user_id != ""):
             self.log.info(f'Getting essential tasks for user: {user_id}')
             events = self.db.child("essential_tasks/{}".format(user_id)).get()
@@ -269,7 +269,7 @@ class EssentialTaskFirebaseSkill(MycroftSkill):
                 self.add_reminders_for_remaining_tasks()
             else:
                 self.log.info('The Task does not exist')
-                self.speak(f"{task_name} is not a valid task")
+                self.speak(f"{task_name} is not a valid task or you have no essential tasks")
 
         else:
             # tasks = self.settings.get('essential-tasks', [])
