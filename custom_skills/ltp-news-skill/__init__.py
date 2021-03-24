@@ -61,14 +61,16 @@ def is_affirmative(utterance, lang='en-us'):
 def get_best_matching_title(articles, utterance):
     """ Check the items against the utterance and see which matches best. """
     item_rating_list = []
-    for article in articles:
-        title = article.title
-        res = re.sub(r'[^\w\s]', '', title)
-        # words = get_interesting_words(title)
-        words = res.split()
-        item_rating_list.append((calc_rating(words, utterance), article))
-    item_rating_list.sort(key=lambda x: x[0], reverse=False)
-    return item_rating_list[-1]
+    if(len(articles) > 0):
+        for article in articles:
+            title = article.title
+            res = re.sub(r'[^\w\s]', '', title)
+            # words = get_interesting_words(title)
+            words = res.split()
+            item_rating_list.append((calc_rating(words, utterance), article))
+        item_rating_list.sort(key=lambda x: x[0], reverse=False)
+        return item_rating_list[-1]
+    return None
 
 
 def calc_rating(words, utterance):
@@ -252,16 +254,46 @@ class RssNewsSkill(MycroftSkill):
         else:
             self.speak('You are not subscribed to any topics', wait=True)
 
+    def readlines_three(self, paragraphs):
+        for paragraph in paragraphs:
+            self.speak(paragraph.text, wait=True)
+            response = self.ask_yesno(prompt="Do you want to continue")
+            time.sleep(1)
+            if (response == 'yes'):
+                continue
+            elif (response == 'no'):
+                self.speak('I will stop reading now', wait=True)
+                return
+            else:
+                self.speak("since i did not receive anything, I am going to stop", wait=True)
+                return
+        self.speak('I have finished reading the article', wait=True)
+
+    def check_words(self, start, end, paragraphs, max_words=55):
+        while True:
+            texts = [r.text for r in paragraphs[start:end]]
+            joined_words = " ".join(texts)
+            words = joined_words.split(' ')
+            self.log.info(f"Calculated words in paragraph {len(words)}")
+            if(len(words) >= max_words):
+                end -= 1
+                if(end <= start):
+                    return start
+            else:
+                return end
+
     def readlines(self, total_lines, paragraphs):
         lines = 0
         while lines < total_lines:
             # print("Reading from line: ", lines, " of ", total_lines)
-            temp_max = lines + 2
+            temp_max = lines + 4
             # Ternary operator to calculate the maximum lines to read in this loop
-            max_lines = total_lines if (temp_max > total_lines) else temp_max
+            temp_lines = total_lines if (temp_max > total_lines) else temp_max
             # print("Value of max lines ", max_lines)
-            for paragraph in paragraphs[lines:max_lines]:
-                self.speak(paragraph.text, wait=True)
+            max_lines = self.check_words(lines, temp_lines, paragraphs)
+            texts = [r.text for r in paragraphs[lines:max_lines]]
+            joined_words = " ".join(texts)
+            self.speak(joined_words, wait=True)
             if(max_lines == total_lines):
                 self.speak('I have finished reading the article', wait=True)
                 break
@@ -274,6 +306,7 @@ class RssNewsSkill(MycroftSkill):
                     self.speak('I will stop', wait=True)
                     break
                 else:
+                    self.speak('I will stop reading', wait=True)
                     break
 
     @intent_file_handler('StopTheNews.intent')
@@ -284,23 +317,44 @@ class RssNewsSkill(MycroftSkill):
     def read_article_in_detail(self, msg=None):
         # TODO: Get article number or name from feed list
         # Currently need to get the url from the article
-        if ('utterance' in msg.data):
-            user_topics = self.settings.get('topics', [])
+        user_topics = self.settings.get('topics', [])
+        if('article_name' in msg.data):
             if (len(user_topics) > 0):
+                utterance_article = msg.data['article_name']
                 articles = self.get_articles(user_topics)
                 best_matched_article = get_best_matching_title(articles, msg.data['article_name'])
-                self.speak(f'Reading Article {best_matched_article[1].title}', wait=True)
-                html_document = self.getHTMLdocument(best_matched_article[1].link)
-
-                # create soap object
-                soup = BeautifulSoup(html_document, 'html.parser')
-                paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
-                # Read only 4 lines and then ask for if they want more?
-                repeat = math.ceil(len(paragraphs)/4)
-                total_lines = len(paragraphs)
-                self.readlines(total_lines, paragraphs)
+                if(best_matched_article is not None):
+                    self._read_article_in_detail(best_matched_article[1])
             else:
                 self.speak('Please subscribe to a topic to read articles in more detail', wait=True)
+        elif ('utterance' in msg.data):
+            if (len(user_topics) > 0):
+                articles = self.get_articles(user_topics)
+                article_headlines = [n.title for n in articles]
+                article = self.ask_selection(options=article_headlines, dialog='Which article would you like to read', numeric=True)
+
+                if (article is not None and article != 'other'):
+                    best_matched_article = next((x for x in articles if x.title == article), None)
+                    if (best_matched_article):
+                        self._read_article_in_detail(best_matched_article)
+                else:
+                    self.speak("I did not understand what you said, please try again", wait=True)
+
+            else:
+                self.speak('Please subscribe to a topic to read articles in more detail', wait=True)
+        else:
+            self.speak('I did not understand what you said, please try again', wait=True)
+
+    def _read_article_in_detail(self, article):
+        self.speak(f'Reading Article {article.title}')
+        html_document = self.getHTMLdocument(article.link)
+        # create soap object
+        soup = BeautifulSoup(html_document, 'html.parser')
+        paragraphs = soup.find('article').find_all('div', attrs={'data-component': 'text-block'})
+        # Read only 4 lines and then ask for if they want more?
+        total_lines = len(paragraphs)
+
+        self.readlines(total_lines, paragraphs)
 
     @skill_api_method
     @intent_file_handler('GiveUserNews.intent')
@@ -333,7 +387,7 @@ class RssNewsSkill(MycroftSkill):
                             articles = self.get_articles(topics=[topic])
                             self.speak_articles_list(articles)
                         else:
-                            self.speak('Ok.', wait=True)
+                            self.speak('okay', wait=True)
                             pass
                 else:
                     self.speak('The topic you said is not avaliable', wait=True)
