@@ -401,7 +401,7 @@ class ReminderSkill(MycroftSkill):
         reminder['id']
         if(reminder_type == 'calender-event'):
             self.log.info(f'Updating reminder that is Calender-Event')
-            existing_existing_reminder = self.get_by_id(reminder['id'])
+            existing_reminder = self.get_by_id(reminder['id'])
             self.log.info(f'Found remidner by id: {existing_reminder}')
             if (existing_reminder):
                 dt = deserialize(reminder['date'])
