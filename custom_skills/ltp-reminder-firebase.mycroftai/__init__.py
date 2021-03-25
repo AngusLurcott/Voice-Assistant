@@ -569,9 +569,10 @@ class ReminderSkill(MycroftSkill):
                     if(existing_reminder['name'] != reminder or deserialize(existing_reminder['date']) != dt):
                         self.log.info(f'Event needs to be updated {existing_reminder}')
                         self.log.info(f'To new changes {reminders[i]}')
-                        reminder[i]['name'] = reminder
-                        reminder[i]['date'] = date
-                        self.update_reminder(reminder, existing_reminder['type'])
+                        reminders[i]['name'] = reminder
+                        reminders[i]['date'] = date
+                        reminders[i]['id'] = reminder_ids[i]
+                        self.update_reminder(reminders[i], existing_reminder['type'])
                         # self.update_reminder(existing_reminder['id'], reminder, date, existing_reminder['type'])
                     else:
                         print('No need to update event')

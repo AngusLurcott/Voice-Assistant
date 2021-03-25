@@ -175,7 +175,7 @@ class CalanderEventFirebaseSkill(MycroftSkill):
             # Currently checks values inside the users table
             # TODO: Use the Events/Reminders table
             users = self.db.child("users").get()
-            self.speak_dialog('FirebaseFetchResult', {'data': f"for the users table, {len(users.val())} records found"})
+            self.speak('Syncing Events', wait=True)
             self.sync_remote_events_to_device()
         except HTTPError as e:
             if e.response.status_code == 401:
